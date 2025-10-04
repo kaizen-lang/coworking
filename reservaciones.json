@@ -1,0 +1,16 @@
+{
+  "xppjrcr": {
+    "id_cliente": "razo4a2",
+    "fecha": "2025-10-15",
+    "turno": "Matutino",
+    "id_sala": "vk6e4op",
+    "nombre_evento": "Fiesta de ejemplo en la manana"
+  },
+  "1mq65mr": {
+    "id_cliente": "razo4a2",
+    "fecha": "2025-10-15",
+    "turno": "Vespertino",
+    "id_sala": "vk6e4op",
+    "nombre_evento": "Fiesta de ejemplo en la tarde"
+  }
+}

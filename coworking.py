@@ -3,6 +3,7 @@
 
 import random
 import datetime as dt
+import json
 
 #Utilidades que se utilizarán en todo el código.
 def generar_id() -> str:
@@ -23,19 +24,25 @@ def generar_id() -> str:
 
 class ManejarReservaciones:
     #Sistema de reservaciones, buscar por fecha, etc.
-    lista = {
-        "ejemploreserva": {
-            "id_cliente": "ejemplo123",
-            "fecha": dt.date(2025, 10, 1),  #Resultado del strptime, se puede convertir de nuevo en string después. Objeto date.
-            "turno": "Matutino",
-            "id_sala": "ejemplosala1",
-            "nombre_evento": "Ejemplo Evento"
+
+    """
+        Ejemplo de registro promedio:
+        lista = {
+            "ejemploreserva": {
+                "id_cliente": "ejemplo123",
+                "fecha": dt.date(2025, 10, 1),  #Resultado del strptime, se puede convertir de nuevo en string después. Objeto date.
+                "turno": "Matutino",
+                "id_sala": "ejemplosala1",
+                "nombre_evento": "Ejemplo Evento"
+            }
         }
-    }
+    """
+
+    lista = {}
     turnos = ("Matutino", "Vespertino", "Nocturno")
 
-    def __init__(self):
-        pass
+    def __init__(self, lista = {}):
+        self.lista = lista
 
     def registrar_reservacion(self, id_cliente: str, fecha, turno: str, id_sala: str, nombre_evento: str):
         folio = generar_id()
@@ -76,7 +83,7 @@ class ManejarReservaciones:
                 return False
         return True
 
-    def mostrar_reservaciones_por_fecha(self, fecha):
+    def mostrar_reservaciones_por_fecha(self, fecha, lista_salas, lista_clientes):
         #Mostrar en formato tabular
         print(f"\nReporte de reservaciones para la fecha {fecha}:")
         print(f"{'Sala':<15} {'Cliente':<20} {'Evento':<30} {'Turno':<15}")
@@ -86,8 +93,8 @@ class ManejarReservaciones:
         for folio, datos in self.lista.items():
             if datos["fecha"] == fecha:
                 encontrados = True
-                sala_nombre = Coworking.salas.lista.get(datos["id_sala"], {"Nombre": "Desconocida"})["Nombre"]
-                cliente_datos = Coworking.clientes.lista.get(datos["id_cliente"], {"Nombre": "Desconocido", "Apellidos": ""})
+                sala_nombre = lista_salas.get(datos['id_sala'], {"Nombre": "Desconocida"})['Nombre']
+                cliente_datos = lista_clientes.get(datos['id_cliente'], {"Nombre": "Desconocido", "Apellidos": ""})
                 cliente = f"{cliente_datos['Nombre']} {cliente_datos['Apellidos']}"
                 print(f"{sala_nombre:<15} {cliente:<20} {datos['nombre_evento']:<30} {datos['turno']:<15}")
 
@@ -122,15 +129,21 @@ class ManejarReservaciones:
             print("Folio no encontrado.")
 
 class ManejarSalas:
-    lista = {
-        "ejemplosala1": {
-            "Nombre": "Salauno",
-            "Cupo": 20
-        }
-    }
 
-    def __init__(self):
-        pass
+    """
+        Ejemplo de registro promedio:
+        lista = {
+            "ejemplosala1": {
+                "Nombre": "Salauno",
+                "Cupo": 20
+            }
+        }
+    """
+
+    lista = {}
+
+    def __init__(self, lista = {}):
+        self.lista = lista
 
     def registrar_sala(self, nombre: str, cupo: int):
         id_sala = generar_id()
@@ -138,15 +151,21 @@ class ManejarSalas:
         print(f"Sala registrada exitosamente con el ID: {id_sala}")
 
 class ManejarClientes:
-    lista = {
-        "ejemplo123": {
-            "Nombre": "Manuel",
-            "Apellidos": "Garza"
-        }
-    }
 
-    def __init__(self):
-        pass
+    """
+        Ejemplo de registro promedio:
+        lista = {
+            "ejemplo123": {
+                "Nombre": "Manuel",
+                "Apellidos": "Garza"
+            }
+        }
+    """
+
+    lista = {}
+
+    def __init__(self, lista = {}):
+        self.lista = lista
 
     def registrar_cliente(self, nombre: str, apellidos: str) -> bool:
         #Añadir las validaciones
@@ -185,15 +204,16 @@ class ManejarClientes:
             print(f"{id_cliente:<15} {nombre:<20} {apellidos:<20}")
 
 class Coworking:
-    clientes = ManejarClientes()
-    salas = ManejarSalas()
-    reservaciones = ManejarReservaciones()
 
-    def __init__(self):
-        #Esto servirá para después, en caso de que queramos pasar una lista ya hecha.
-        #self.clientes = clientes
-        #self.salas = salas
-        pass
+    #Establecemos el tipo de cada atributo
+    clientes = ManejarClientes
+    salas = ManejarSalas
+    reservaciones = ManejarReservaciones
+
+    def __init__(self, clientes = ManejarClientes(), salas = ManejarSalas(), reservaciones = ManejarReservaciones()):
+        self.clientes = clientes
+        self.salas = salas
+        self.reservaciones = reservaciones
 
     def mostrar_menu(self):
         opcion = 0
@@ -339,7 +359,8 @@ class Coworking:
                         except ValueError:
                             print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
 
-                    self.reservaciones.mostrar_reservaciones_por_fecha(fecha)
+                    self.reservaciones.mostrar_reservaciones_por_fecha(fecha, self.salas.lista, self.clientes.lista)
+                    #TODO: Permitir exportarlo a JSON
 
                 case 4:
                     print("Ha escogido la opción: Registrar a un nuevo cliente.")
@@ -371,9 +392,51 @@ class Coworking:
                             print("Valor inválido")
 
                 case 6:
-                    print("Saliendo del programa...")
+                    print("Saliendo del programa... ¿Quiere guardar su progreso?")
+
+                    while True:
+                        guardar = input("Escriba S para guardar o N para salir sin guardar: ")
+
+                        match guardar.capitalize():
+                            case "S":
+                                with open("reservaciones.json", "w") as archivo:
+                                    lista_exportada = self.reservaciones.lista
+                                    for id, datos in lista_exportada.items():
+                                        lista_exportada[id]["fecha"] = datos["fecha"].isoformat()
+                                    json.dump(lista_exportada, archivo, indent=2)
+
+                                with open("clientes.json", "w") as archivo:
+                                    json.dump(self.clientes.lista, archivo, indent=2)
+
+                                with open("salas.json", "w") as archivo:
+                                    json.dump(self.salas.lista, archivo, indent=2)
+                                break
+                            case "N":
+                                break
                     break
 
 if __name__ == "__main__":
-    programa = Coworking()
+    try:
+        #Tratamos de importar los archivos JSON, en caso de que existan.
+        with open("reservaciones.json", "r") as archivo:
+            lista_importada = json.load(archivo)
+            for id, datos in lista_importada.items():
+                lista_importada[id]["fecha"] = dt.date.fromisoformat(datos["fecha"])
+            reservaciones = ManejarReservaciones(lista_importada)
+
+        with open("clientes.json", "r") as archivo:
+            lista_importada = json.load(archivo)
+            clientes = ManejarClientes(lista_importada)
+
+        with open("salas.json", "r") as archivo:
+            lista_importada = json.load(archivo)
+            salas = ManejarSalas(lista_importada)
+
+        #Pasamos las clases con listas importadas al constructor
+        programa = Coworking(clientes, salas, reservaciones)
+
+    except FileNotFoundError:
+        #Si no existen los archivos, se crean las clases con listas vacías
+        programa = Coworking()
+
     programa.mostrar_menu()
