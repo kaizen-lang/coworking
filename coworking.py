@@ -1,51 +1,36 @@
 
-"""Script de coworking"""
+"""Script de coworking."""
 
-import random
 import datetime as dt
 import json
 
-#Utilidades que se utilizarán en todo el código.
-def generar_id() -> str:
-    """Genera un ID aleatorio de 7 carácteres.
-
-    Returns:
-        str: ID generado
-    """
-    #Generamos una tupla con carácteres, los cuales usaremos para generar el ID.
-    caracteres = tuple("qwertyuiopasdfghjklzxcvbnm123456789")
-
-    #Se escoge un carácter aleatorio 7 veces.
-    generacion = [random.choice(caracteres) for x in range(7)]
-
-    id_generado = "".join(generacion)  #Unimos la lista generada en un string.
-
-    return id_generado
-
 class ManejarReservaciones:
-    #Sistema de reservaciones, buscar por fecha, etc.
 
-    """
-        Ejemplo de registro promedio:
+    """Clase para manejar reservaciones.
+
+    Estructura de un registro promedio
         lista = {
-            "ejemploreserva": {
-                "id_cliente": "ejemplo123",
-                "fecha": dt.date(2025, 10, 1),  #Resultado del strptime, se puede convertir de nuevo en string después. Objeto date.
-                "turno": "Matutino",
-                "id_sala": "ejemplosala1",
-                "nombre_evento": "Ejemplo Evento"
+            folio: {
+                id_cliente: str,
+                fecha: dt.date,
+                turno: str,
+                id_sala: str,
+                nombre_evento: str
             }
         }
     """
 
     lista = {}
     turnos = ("Matutino", "Vespertino", "Nocturno")
+    contador_folio = 0
 
-    def __init__(self, lista = {}):
-        self.lista = lista
+    def __init__(self, lista:dict = None):
+        #En caso de que no se pase una lista, se crea una vacía, para evitar que se comparta entre instancias.
+        self.lista = lista or {}
 
     def registrar_reservacion(self, id_cliente: str, fecha, turno: str, id_sala: str, nombre_evento: str):
-        folio = generar_id()
+        self.contador_folio += 1
+        folio = self.contador_folio
 
         self.lista[folio] = {
             "id_cliente": id_cliente,
@@ -65,8 +50,10 @@ class ManejarReservaciones:
 
         salas_disponibles = False
         for id_sala, datos_sala in lista_salas.items():
+
             nombre, cupo = datos_sala["Nombre"], datos_sala["Cupo"]
             turnos_disponibles = [turno for turno in self.turnos if self.verificar_disponibilidad(fecha, id_sala, turno)]
+
             if turnos_disponibles:
                 salas_disponibles = True
                 print(f"{id_sala:<15} {nombre:<20} {cupo:<10} {', '.join(turnos_disponibles):<15}")
@@ -74,13 +61,16 @@ class ManejarReservaciones:
         if not salas_disponibles:
             print("No hay salas ni turnos disponibles para esta fecha.")
             return False
+
         return True
 
     def verificar_disponibilidad(self, fecha, id_sala, turno):
         for reservacion in self.lista.values():  #Iteramos por cada reservación para realizar el filtro
             fecha_reservacion, turno_reservacion, id_sala_reservada = reservacion["fecha"], reservacion["turno"], reservacion["id_sala"]
+
             if (fecha_reservacion == fecha) and (turno_reservacion == turno) and (id_sala_reservada == id_sala):
                 return False
+
         return True
 
     def mostrar_reservaciones_por_fecha(self, fecha, lista_salas, lista_clientes):
@@ -90,12 +80,15 @@ class ManejarReservaciones:
         print("-" * 80)
 
         encontrados = False
-        for folio, datos in self.lista.items():
+
+        for datos in self.lista.values():
             if datos["fecha"] == fecha:
                 encontrados = True
+
                 sala_nombre = lista_salas.get(datos['id_sala'], {"Nombre": "Desconocida"})['Nombre']
                 cliente_datos = lista_clientes.get(datos['id_cliente'], {"Nombre": "Desconocido", "Apellidos": ""})
                 cliente = f"{cliente_datos['Nombre']} {cliente_datos['Apellidos']}"
+
                 print(f"{sala_nombre:<15} {cliente:<20} {datos['nombre_evento']:<30} {datos['turno']:<15}")
 
         if not encontrados:
@@ -108,6 +101,7 @@ class ManejarReservaciones:
         print("-" * 60)
 
         lista_eventos = []
+
         for folio, datos in self.lista.items():
             if fecha_inicio <= datos["fecha"] <= fecha_fin:
                 lista_eventos.append((folio, datos["nombre_evento"], datos["fecha"]))
@@ -130,63 +124,73 @@ class ManejarReservaciones:
 
 class ManejarSalas:
 
-    """
-        Ejemplo de registro promedio:
+    """Clase para el manejo de salas.
+
+        Estructura de un registro promedio:
+
         lista = {
-            "ejemplosala1": {
-                "Nombre": "Salauno",
-                "Cupo": 20
+            id_sala: {
+                Nombre: str,
+                Cupo: int
             }
         }
     """
 
     lista = {}
+    contador_salas = 0
 
-    def __init__(self, lista = {}):
-        self.lista = lista
+    def __init__(self, lista = None):
+        #En caso de que no se pase una lista, se crea una vacía, para evitar que se comparta entre instancias.
+        self.lista = lista or {}
 
     def registrar_sala(self, nombre: str, cupo: int):
-        id_sala = generar_id()
+        self.contador_salas += 1
+        id_sala = self.contador_salas
+
         self.lista[id_sala] = {"Nombre": nombre.strip(), "Cupo": cupo}
+
         print(f"Sala registrada exitosamente con el ID: {id_sala}")
 
 class ManejarClientes:
 
-    """
-        Ejemplo de registro promedio:
+    """Clase para el manejo de clientes.
+
+        Estructura de registro promedio:
         lista = {
-            "ejemplo123": {
-                "Nombre": "Manuel",
-                "Apellidos": "Garza"
+            id_cliente: {
+                Nombre: str,
+                Apellidos: str
             }
         }
     """
 
     lista = {}
+    contador_clientes = 0
 
-    def __init__(self, lista = {}):
-        self.lista = lista
+    def __init__(self, lista = None):
+        #En caso de que no se pase una lista, se crea una vacía, para evitar que se comparta entre instancias.
+        self.lista = lista or {}
 
     def registrar_cliente(self, nombre: str, apellidos: str) -> bool:
-        #Añadir las validaciones
-        nombre = nombre.strip()
-        apellidos = apellidos.strip()
+        #Removemos espacios en blanco
+        nombre.strip()
+        apellidos.strip()
 
         if not nombre or not apellidos:
             print("Error, el nombre y apellidos no pueden estar vacios")
             return False
 
-        if not nombre.replace(" ", "").isalpha() or not apellidos.replace(" ", "").isalpha():
+        if not nombre.isalpha() or not apellidos.isalpha():
             print("Error, el nombre y apellidos deben contener solo caracteres alfabéticos y espacios.")
             return False
 
-        if len(nombre) < 2 or len(nombre) > 50 or len(apellidos) < 2 or len(apellidos) > 50:
-            print("Error, el nombre y apellidos deben tener entre 2 y 50 caracteres.")
-            return False
+        self.contador_clientes += 1
+        id_cliente = self.contador_clientes
 
-        id_cliente = generar_id()
         self.lista[id_cliente] = {"Nombre": nombre, "Apellidos": apellidos}
+
         print(f"Cliente registrado satisfactoriamente con el ID: {id_cliente}")
+
         return True
 
     def mostrar_clientes(self):
@@ -210,26 +214,29 @@ class Coworking:
     salas = ManejarSalas
     reservaciones = ManejarReservaciones
 
-    def __init__(self, clientes = ManejarClientes(), salas = ManejarSalas(), reservaciones = ManejarReservaciones()):
-        self.clientes = clientes
-        self.salas = salas
-        self.reservaciones = reservaciones
+    def __init__(self, clientes:ManejarClientes = None, salas:ManejarSalas = None, reservaciones:ManejarReservaciones = None):
+        #En caso de que no se pasen argumentos, se crean las clases con listas vacías.
+        self.clientes = clientes or ManejarClientes()
+        self.salas = salas or ManejarSalas()
+        self.reservaciones = reservaciones or ManejarReservaciones()
 
     def mostrar_menu(self):
         opcion = 0
+
         while True:
-            print("Bienvenido al programa del coworking.")
+            print("\nBienvenido al programa del coworking.")
             print("Opciones disponibles:")
             print("(1) - Registrar reservación de sala")
             print("(2) - Editar el nombre de una reservación ya hecha")
             print("(3) - Consultar reservaciones de una fecha específica")
             print("(4) - Registrar a un nuevo cliente")
             print("(5) - Registrar una sala")
-            print("(6) - Salir del programa")
+            print("(6) - Salir del programa\n")
 
             while True:
                 try:
                     opcion = int(input("Escribe el número de la opción que vas a escoger: "))
+
                     if opcion < 1 or opcion > 6:
                         print("ERROR: Opción no válida. Escoge entre 1 y 6.")
                         continue
@@ -243,7 +250,6 @@ class Coworking:
                 case 1:
                     print("Ha escogido la opción: Registrar reservación de sala")
 
-                    id_cliente = None
                     while True:
                         #Validaciones
                         self.clientes.mostrar_clientes()
@@ -251,19 +257,22 @@ class Coworking:
 
                         if id_cliente not in self.clientes.lista:
                             print("Por favor escriba un ID válido.")
-                            continuar = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-                            if continuar.upper() == "S":
-                                break
-                            continue  #Lo mandamos de nuevo al ciclo
+
+                            salir = False
+                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                            if confirmar_salida.upper() == "S":
+                                salir = True
                         break
 
-                    if id_cliente not in self.clientes.lista:
-                        continue  #Se cancela para regresar al menú principal
+                    if salir:
+                        continue  #Volver al menú principal
 
                     while True:
                         try:
                             fecha_str = input("Escriba la fecha (dd/mm/aaaa): ")
                             fecha = dt.datetime.strptime(fecha_str, "%d/%m/%Y").date()
+
                             break
                         except ValueError:
                             print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
@@ -281,7 +290,18 @@ class Coworking:
 
                         if id_sala not in self.salas.lista:
                             print("ID de sala no válido.")
+
+                            salir = False
+                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                            if confirmar_salida.upper() == "S":
+                                salir = True
+                                break
+
                             continue
+
+                        if salir:
+                            break  #Volver al menú principal
 
                         turno = input("Escriba el turno a escoger (Matutino, Vespertino, Nocturno): ").capitalize()
 
@@ -319,6 +339,19 @@ class Coworking:
                         except ValueError:
                             print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
 
+                            salir = False
+                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                            if confirmar_salida.upper() == "S":
+                                salir = True
+                                break
+
+                            continue
+
+                    if salir:
+                        continue  #Volver al menú principal
+
+
                     folios_validos = self.reservaciones.mostrar_reservaciones_en_rango(fecha_inicio, fecha_fin)
 
                     if not folios_validos:
@@ -328,12 +361,16 @@ class Coworking:
                     folio = None
                     while True:
                         folio = input("Escriba el folio del evento a modificar: ")
+
                         if folio not in folios_validos:
                             print("Folio no válido en este rango. Por favor, seleccione uno de la lista.")
+
                             continuar = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
                             if continuar.upper() == "S":
                                 break
+
                             continue
+
                         break
 
                     if folio not in folios_validos:
@@ -344,6 +381,7 @@ class Coworking:
                         if not nuevo_nombre or len(nuevo_nombre) < 3:
                             print("Escriba un nombre válido (mínimo 3 caracteres).")
                             continue
+
                         break
 
                     self.reservaciones.editar_nombre_evento(folio, nuevo_nombre)
@@ -359,6 +397,16 @@ class Coworking:
                         except ValueError:
                             print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
 
+                            salir = False
+                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                            if confirmar_salida.upper() == "S":
+                                salir = True
+                                break
+
+                    if salir:
+                        break #Volver al menú principal
+
                     self.reservaciones.mostrar_reservaciones_por_fecha(fecha, self.salas.lista, self.clientes.lista)
                     #TODO: Permitir exportarlo a JSON
 
@@ -366,6 +414,7 @@ class Coworking:
                     print("Ha escogido la opción: Registrar a un nuevo cliente.")
                     while True:
                         nombre = input("Escriba su nombre: ")
+                        #TODO: Validar por campo
                         apellidos = input("Escriba sus apellidos: ")
                         if self.clientes.registrar_cliente(nombre, apellidos):
                             break
@@ -378,12 +427,19 @@ class Coworking:
 
                             if nombre_sala.strip() == "" or len(nombre_sala.strip()) < 2:
                                 print("Error, el nombre de la sala no puede estar vacio o tener menos de 2 caracteres.")
+                                salir = False
+                                confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                                if confirmar_salida.upper() == "S":
+                                    salir = True
+                                    break
+
                                 continue
 
+                            if salir:
+                                continue  #Volver al menú principal
+
                             cupo = int(input("Escriba el cupo de la sala: "))
-                            if cupo <= 0 or cupo > 1000:
-                                print("Error, el cupo debe ser un número positivo entre 1 y 1000.")
-                                continue
 
                             self.salas.registrar_sala(nombre_sala, cupo)
 
@@ -411,13 +467,17 @@ class Coworking:
                                 with open("salas.json", "w") as archivo:
                                     json.dump(self.salas.lista, archivo, indent=2)
                                 break
+
                             case "N":
                                 break
+
                     break
 
 if __name__ == "__main__":
+    #Este código solo se ejecuta si el script es el programa principal.
+
     try:
-        #Tratamos de importar los archivos JSON, en caso de que existan.
+        #Intentamos recuperar un estado previo del programa, en caso de que existan los archivos JSON.
         with open("reservaciones.json", "r") as archivo:
             lista_importada = json.load(archivo)
             for id, datos in lista_importada.items():
@@ -432,7 +492,7 @@ if __name__ == "__main__":
             lista_importada = json.load(archivo)
             salas = ManejarSalas(lista_importada)
 
-        #Pasamos las clases con listas importadas al constructor
+        #Pasamos las clases con los datos cargados al constructor de Coworking
         programa = Coworking(clientes, salas, reservaciones)
 
     except FileNotFoundError:
