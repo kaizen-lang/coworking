@@ -172,17 +172,6 @@ class ManejarClientes:
         self.lista = lista or {}
 
     def registrar_cliente(self, nombre: str, apellidos: str) -> bool:
-        #Removemos espacios en blanco
-        nombre.strip()
-        apellidos.strip()
-
-        if not nombre or not apellidos:
-            print("Error, el nombre y apellidos no pueden estar vacios")
-            return False
-
-        if not nombre.isalpha() or not apellidos.isalpha():
-            print("Error, el nombre y apellidos deben contener solo caracteres alfabéticos y espacios.")
-            return False
 
         self.contador_clientes += 1
         id_cliente = self.contador_clientes
@@ -222,6 +211,7 @@ class Coworking:
 
     def mostrar_menu(self):
         opcion = 0
+        salir = False
 
         while True:
             print("\nBienvenido al programa del coworking.")
@@ -240,9 +230,11 @@ class Coworking:
                     if opcion < 1 or opcion > 6:
                         print("ERROR: Opción no válida. Escoge entre 1 y 6.")
                         continue
+
                 except ValueError:
                     print("ERROR: Escribe un número válido.")
                     continue
+
                 else:
                     break
 
@@ -253,19 +245,35 @@ class Coworking:
                     while True:
                         #Validaciones
                         self.clientes.mostrar_clientes()
-                        id_cliente = input("Escriba su ID de cliente: ")
+                        try:
+                            id_cliente = int(input("Escriba su ID de cliente: "))
 
-                        if id_cliente not in self.clientes.lista:
-                            print("Por favor escriba un ID válido.")
+                            if id_cliente not in self.clientes.lista:
+                                print("Por favor escriba un ID válido.")
 
-                            salir = False
+                                confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                                if confirmar_salida.upper() == "S":
+                                    salir = True
+                                    break
+
+                                continue
+
+
+                        except ValueError:
+                            print("Error: Formato inválido")
+
                             confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
 
                             if confirmar_salida.upper() == "S":
                                 salir = True
+                                break
+
+                            continue
                         break
 
                     if salir:
+                        salir = False
                         continue  #Volver al menú principal
 
                     while True:
@@ -277,6 +285,16 @@ class Coworking:
                         except ValueError:
                             print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
 
+                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                            if confirmar_salida.upper() == "S":
+                                salir = True
+                                break
+
+                    if salir:
+                        salir = False
+                        continue  #Volver al menú principal
+
                     #Validando si la reservación es mínimo dos días posteriores al día actual
                     fecha_minima = dt.date.today() + dt.timedelta(days=2)
 
@@ -286,12 +304,23 @@ class Coworking:
 
                     while True:
                         self.reservaciones.mostrar_salas_disponibles(self.salas.lista, fecha)
-                        id_sala = input("Escriba el ID de la sala a escoger: ")
+                        try:
+                            id_sala = int(input("Escriba el ID de la sala a escoger: "))
 
-                        if id_sala not in self.salas.lista:
-                            print("ID de sala no válido.")
+                            if id_sala not in self.salas.lista:
+                                print("ID de sala no válido.")
 
-                            salir = False
+                                confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                                if confirmar_salida.upper() == "S":
+                                    salir = True
+                                    break
+
+                            break
+
+                        except ValueError:
+                            print("Error: Formato inválido")
+
                             confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
 
                             if confirmar_salida.upper() == "S":
@@ -300,26 +329,60 @@ class Coworking:
 
                             continue
 
-                        if salir:
-                            break  #Volver al menú principal
+                    if salir:
+                        salir = False
+                        continue  #Volver al menú principal
 
+                    while True:
                         turno = input("Escriba el turno a escoger (Matutino, Vespertino, Nocturno): ").capitalize()
 
                         if turno not in self.reservaciones.turnos:
                             print("Turno no válido.")
+
+                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                            if confirmar_salida.upper() == "S":
+                                salir = True
+                                break
+
                             continue
 
-                        if self.reservaciones.verificar_disponibilidad(fecha, id_sala, turno):
-                            print("Hay disponibilidad")
-                            break
-                        print("No hay disponibilidad en ese turno para esta sala.")
+                        if not self.reservaciones.verificar_disponibilidad(fecha, id_sala, turno):
+                            print("No hay disponibilidad en ese turno para esta sala.")
+
+                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                            if confirmar_salida.upper() == "S":
+                                salir = True
+                                break
+
+                            continue
+
+                        break
+
+                    if salir:
+                        salir = False
+                        continue  #Volver al menú principal
+
+                    print("Hay disponibilidad.")
 
                     while True:
                         nombre_evento = input("Escriba el nombre del evento: ").strip()
                         if not nombre_evento or len(nombre_evento) < 3:
                             print("Escriba un nombre válido (mínimo 3 caracteres).")
+
+                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+                            if confirmar_salida.upper() == "S":
+                                salir = True
+                                break
+
                             continue
+
                         break
+
+                    if salir:
+                        salir = False
+                        continue  #Volver al menú principal
 
                     self.reservaciones.registrar_reservacion(id_cliente, fecha, turno, id_sala, nombre_evento)
 
@@ -339,7 +402,6 @@ class Coworking:
                         except ValueError:
                             print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
 
-                            salir = False
                             confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
 
                             if confirmar_salida.upper() == "S":
@@ -349,6 +411,7 @@ class Coworking:
                             continue
 
                     if salir:
+                        salir = False
                         continue  #Volver al menú principal
 
 
@@ -397,7 +460,6 @@ class Coworking:
                         except ValueError:
                             print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
 
-                            salir = False
                             confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
 
                             if confirmar_salida.upper() == "S":
@@ -405,29 +467,23 @@ class Coworking:
                                 break
 
                     if salir:
-                        break #Volver al menú principal
+                        salir = False
+                        continue #Volver al menú principal
 
                     self.reservaciones.mostrar_reservaciones_por_fecha(fecha, self.salas.lista, self.clientes.lista)
                     #TODO: Permitir exportarlo a JSON
 
                 case 4:
                     print("Ha escogido la opción: Registrar a un nuevo cliente.")
-                    while True:
-                        nombre = input("Escriba su nombre: ")
-                        #TODO: Validar por campo
-                        apellidos = input("Escriba sus apellidos: ")
-                        if self.clientes.registrar_cliente(nombre, apellidos):
-                            break
 
-                case 5:
-                    print("Ha escogido la opción: registrar nueva sala")
                     while True:
-                        try:
-                            nombre_sala = input("Escriba el nombre de la sala: ")
 
-                            if nombre_sala.strip() == "" or len(nombre_sala.strip()) < 2:
-                                print("Error, el nombre de la sala no puede estar vacio o tener menos de 2 caracteres.")
-                                salir = False
+                        while True:
+                            nombre = input("Escriba su nombre: ")
+
+                            if not nombre.strip():
+                                print("El nombre no puede estar vacío.")
+
                                 confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
 
                                 if confirmar_salida.upper() == "S":
@@ -436,16 +492,88 @@ class Coworking:
 
                                 continue
 
-                            if salir:
-                                continue  #Volver al menú principal
-
-                            cupo = int(input("Escriba el cupo de la sala: "))
-
-                            self.salas.registrar_sala(nombre_sala, cupo)
-
                             break
-                        except ValueError:
-                            print("Valor inválido")
+
+                        if salir:
+                            salir = False
+                            break  #Volver al menú principal
+
+                        while True:
+                            apellidos = input("Escriba sus apellidos: ")
+
+                            if not apellidos.strip():
+                                print("Los apellidos no pueden estar vacíos.")
+
+                                confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                                if confirmar_salida.upper() == "S":
+                                    salir = True
+                                    break
+
+                                continue
+                            break
+
+                        if salir:
+                            salir = False
+                            break  #Volver al menú principal
+
+                        if self.clientes.registrar_cliente(nombre, apellidos):
+                            break
+
+                case 5:
+                    print("Ha escogido la opción: registrar nueva sala")
+                    while True:
+
+                        nombre_sala = input("Escriba el nombre de la sala: ")
+
+                        if nombre_sala.strip() == "" or len(nombre_sala.strip()) < 2:
+                            print("Error, el nombre de la sala no puede estar vacio o tener menos de 2 caracteres.")
+
+                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                            if confirmar_salida.upper() == "S":
+                                salir = True
+                                break
+
+                            continue
+
+                        if salir:
+                            salir = False
+                            continue  #Volver al menú principal
+
+                        while True:
+                            cupo_str = input("Escriba el cupo de la sala: ")
+
+                            if cupo_str.strip() == "":
+                                print("Error, el cupo no puede estar vacío.")
+
+                                confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                                if confirmar_salida.upper() == "S":
+                                    salir = True
+                                    break
+
+                                continue
+
+                            try:
+                                cupo = int(cupo_str)
+                            except ValueError:
+                                print("Valor inválido")
+
+                                confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+
+                                if confirmar_salida.upper() == "S":
+                                    salir = True
+                                    break
+                                continue
+                            break
+
+                        if salir:
+                            salir = False
+                            break  #Volver al menú principal
+
+                        self.salas.registrar_sala(nombre_sala, cupo)
+                        break
 
                 case 6:
                     print("Saliendo del programa... ¿Quiere guardar su progreso?")
