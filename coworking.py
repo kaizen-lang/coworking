@@ -28,7 +28,14 @@ class ManejarReservaciones:
     def __init__(self, lista:dict = None):
         #En caso de que no se pase una lista, se crea una vacía, para evitar que se comparta entre instancias.
         self.lista = lista or {}
-
+        if self.lista:
+            try:
+                self.contador_folio = max(map(int, self.lista.keys()))
+            except ValueError:
+                self.contador_folio = 0
+        else:
+            self.contador_folio = 0
+              
     def registrar_reservacion(self, id_cliente: str, fecha, turno: str, id_sala: str, nombre_evento: str):
         self.contador_folio += 1
         folio = self.contador_folio
@@ -143,7 +150,14 @@ class ManejarSalas:
     def __init__(self, lista = None):
         #En caso de que no se pase una lista, se crea una vacía, para evitar que se comparta entre instancias.
         self.lista = lista or {}
-
+        if self.lista:
+            try:
+                self.contador_salas = max(map(int, self.lista.keys()))
+            except ValueError:
+                self.contador_salas = 0
+        else:
+            self.contador_salas = 0
+            
     def registrar_sala(self, nombre: str, cupo: int):
         self.contador_salas += 1
         id_sala = self.contador_salas
@@ -171,7 +185,14 @@ class ManejarClientes:
     def __init__(self, lista = None):
         #En caso de que no se pase una lista, se crea una vacía, para evitar que se comparta entre instancias.
         self.lista = lista or {}
-
+        if self.lista:
+            try:
+                self.contador_clientes = max(map(int, self.lista.keys()))
+            except ValueError:
+                self.contador_clientes = 0
+        else:
+            self.contador_clientes = 0
+            
     def registrar_cliente(self, nombre: str, apellidos: str) -> bool:
 
         self.contador_clientes += 1
@@ -531,6 +552,9 @@ if __name__ == "__main__":
                 lista_importada[id]["fecha"] = dt.date.fromisoformat(datos["fecha"])
             reservaciones = ManejarReservaciones(lista_importada)
 
+            if reservaciones.lista:
+              reservaciones.contador_folio = max(map(int, reservaciones.lista.keys()))
+                
         with open("clientes.json", "r") as archivo:
             lista_importada = json.load(archivo)
             clientes = ManejarClientes(lista_importada)
