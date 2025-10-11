@@ -22,6 +22,7 @@ class ManejarReservaciones:
 
     lista = {}
     turnos = ("Matutino", "Vespertino", "Nocturno")
+    #TODO: Arreglar bug del contador de folios al cargar desde JSON
     contador_folio = 0
 
     def __init__(self, lista:dict = None):
@@ -209,9 +210,263 @@ class Coworking:
         self.salas = salas or ManejarSalas()
         self.reservaciones = reservaciones or ManejarReservaciones()
 
+    def __verificar_salida(self)->bool:
+        """Verifica si el usuario quiere salir de la operación actual. De esta forma evitamos repetir las validaciones flag."""
+        confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
+        return True if confirmar_salida.upper() == "S" else False
+
+    def __pedir_string(self, mensaje:str)->str:
+        """Pide una cadena no vacía al usuario y la devuelve en caso de que sea válida."""
+        while True:
+            entrada = input(mensaje).strip()
+            if not entrada:
+                print("El campo no puede estar vacío.")
+                raise ValueError
+            return entrada
+
+    def __registrar_reservacion_sala(self):
+        print("Ha escogido la opción: Registrar reservación de sala")
+
+        while True:
+            self.clientes.mostrar_clientes()
+
+            try:
+                id_cliente = int(self.__pedir_string("Escriba su ID de cliente: "))
+
+                if id_cliente not in self.clientes.lista:
+                    print("Por favor escriba un ID válido.")
+                    raise ValueError
+
+            except ValueError:
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+                continue
+
+            break
+
+        while True:
+            try:
+                fecha_str = self.__pedir_string("Escriba la fecha (dd/mm/aaaa): ")
+                fecha = dt.datetime.strptime(fecha_str, "%d/%m/%Y").date()
+
+                #Validando si la reservación es mínimo dos días posteriores al día actual
+                fecha_minima = dt.date.today() + dt.timedelta(days=2)
+
+                if fecha < fecha_minima:
+                    print("La reservación debe ser por lo menos con dos días de anticipación.")
+                    continue
+
+                break
+            except ValueError:
+                print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
+
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+
+                continue
+
+        while True:
+            self.reservaciones.mostrar_salas_disponibles(self.salas.lista, fecha)
+            try:
+                id_sala = int(input("Escriba el ID de la sala a escoger: "))
+
+                if id_sala not in self.salas.lista:
+                    print("ID de sala no válido.")
+
+                    if self.__verificar_salida():
+                        return #Salir de la función, regresa al menú principal
+
+                break
+
+            except ValueError:
+                print("Error: Formato inválido")
+
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+
+                continue
+
+        while True:
+            turno = input("Escriba el turno a escoger (Matutino, Vespertino, Nocturno): ").capitalize()
+
+            if turno not in self.reservaciones.turnos:
+                print("Turno no válido.")
+
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+
+                continue
+
+            if not self.reservaciones.verificar_disponibilidad(fecha, id_sala, turno):
+                print("No hay disponibilidad en ese turno para esta sala.")
+
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+
+                continue
+
+            break
+
+        print("Hay disponibilidad.")
+
+        while True:
+            nombre_evento = input("Escriba el nombre del evento: ").strip()
+
+            if not nombre_evento or len(nombre_evento) < 3:
+                print("Escriba un nombre válido (mínimo 3 caracteres).")
+
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+
+                continue
+
+            break
+
+        self.reservaciones.registrar_reservacion(id_cliente, fecha, turno, id_sala, nombre_evento)
+
+    def __editar_nombre_reservacion(self):
+        print("Ha escogido la opción: Editar el nombre de una reservación ya hecha")
+
+        while True:
+            try:
+                fecha_inicio_str = input("Escriba la fecha de inicio del rango (dd/mm/aaaa): ")
+                fecha_inicio = dt.datetime.strptime(fecha_inicio_str, "%d/%m/%Y").date()
+
+                fecha_fin_str = input("Escriba la fecha de fin del rango (dd/mm/aaaa): ")
+                fecha_fin = dt.datetime.strptime(fecha_fin_str, "%d/%m/%Y").date()
+
+                if fecha_inicio > fecha_fin:
+                    print("La fecha de inicio no puede ser posterior a la de fin.")
+                    continue
+
+                folios_validos = self.reservaciones.mostrar_reservaciones_en_rango(fecha_inicio, fecha_fin)
+
+                if not folios_validos:
+                    print("No hay eventos en este rango de fechas.")
+
+                    if self.__verificar_salida():
+                        return #Salir de la función, regresa al menú principal
+
+                    continue
+
+                break
+            except ValueError:
+                print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
+
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+
+                continue
+
+        while True:
+            try:
+                folio_str = self.__pedir_string("Escriba el folio del evento a modificar: ")
+                folio = int(folio_str)
+
+                if folio not in folios_validos:
+                    print("Folio no válido en este rango. Por favor, seleccione uno de la lista.")
+                    raise ValueError
+
+                break
+            except ValueError:
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+                continue
+
+
+        while True:
+            try:
+                nuevo_nombre = self.__pedir_string("Escriba el nuevo nombre del evento: ")
+                break
+            except ValueError:
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+                continue
+
+        self.reservaciones.editar_nombre_evento(folio, nuevo_nombre)
+
+    def __consultar_reservaciones_fecha(self):
+        print("Ha escogido la opción: Consultar reservaciones de una fecha específica")
+
+        while True:
+            try:
+                fecha_str = self.__pedir_string("Escriba la fecha a consultar (dd/mm/aaaa): ")
+                fecha = dt.datetime.strptime(fecha_str, "%d/%m/%Y").date()
+                break
+            except ValueError:
+                print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
+
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+                continue
+
+        self.reservaciones.mostrar_reservaciones_por_fecha(fecha, self.salas.lista, self.clientes.lista)
+        #TODO: Permitir exportarlo a JSON
+
+    def __registrar_nuevo_cliente(self):
+        print("Ha escogido la opción: Registrar a un nuevo cliente.")
+
+        while True:
+            try:
+                nombre = self.__pedir_string("Escriba su nombre: ")
+                break
+            except ValueError:
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+                continue
+
+        while True:
+            try:
+                apellidos = self.__pedir_string("Escriba sus apellidos: ")
+                break
+            except ValueError:
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+                continue
+
+        self.clientes.registrar_cliente(nombre, apellidos)
+
+    def __registrar_nueva_sala(self):
+        print("Ha escogido la opción: registrar nueva sala")
+
+        while True:
+            try:
+                nombre_sala = self.__pedir_string("Escriba el nombre de la sala: ")
+                break
+            except ValueError:
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+                continue
+
+        while True:
+            try:
+                cupo_str = self.__pedir_string("Escriba el cupo de la sala: ")
+                cupo = int(cupo_str)
+                break
+            except ValueError:
+                print("Valor inválido")
+                if self.__verificar_salida():
+                    return #Salir de la función, regresa al menú principal
+                continue
+
+        self.salas.registrar_sala(nombre_sala, cupo)
+
+    def __guardar_datos(self):
+        """Guarda las listas actuales en archivos JSON."""
+        with open("reservaciones.json", "w") as archivo:
+            lista_exportada = self.reservaciones.lista
+            for id, datos in lista_exportada.items():
+                lista_exportada[id]["fecha"] = datos["fecha"].isoformat()
+            json.dump(lista_exportada, archivo, indent=2)
+
+        with open("clientes.json", "w") as archivo:
+            json.dump(self.clientes.lista, archivo, indent=2)
+
+        with open("salas.json", "w") as archivo:
+            json.dump(self.salas.lista, archivo, indent=2)
+
+
     def mostrar_menu(self):
-        opcion = 0
-        salir = False
 
         while True:
             print("\nBienvenido al programa del coworking.")
@@ -239,342 +494,17 @@ class Coworking:
                     break
 
             match opcion:
+                #En lugar de meter toda la lógica en el menú, se llama a métodos privados que manejan cada opción.
                 case 1:
-                    print("Ha escogido la opción: Registrar reservación de sala")
-
-                    while True:
-                        #Validaciones
-                        self.clientes.mostrar_clientes()
-                        try:
-                            id_cliente = int(input("Escriba su ID de cliente: "))
-
-                            if id_cliente not in self.clientes.lista:
-                                print("Por favor escriba un ID válido.")
-
-                                confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                                if confirmar_salida.upper() == "S":
-                                    salir = True
-                                    break
-
-                                continue
-
-
-                        except ValueError:
-                            print("Error: Formato inválido")
-
-                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                            if confirmar_salida.upper() == "S":
-                                salir = True
-                                break
-
-                            continue
-                        break
-
-                    if salir:
-                        salir = False
-                        continue  #Volver al menú principal
-
-                    while True:
-                        try:
-                            fecha_str = input("Escriba la fecha (dd/mm/aaaa): ")
-                            fecha = dt.datetime.strptime(fecha_str, "%d/%m/%Y").date()
-
-                            break
-                        except ValueError:
-                            print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
-
-                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                            if confirmar_salida.upper() == "S":
-                                salir = True
-                                break
-
-                    if salir:
-                        salir = False
-                        continue  #Volver al menú principal
-
-                    #Validando si la reservación es mínimo dos días posteriores al día actual
-                    fecha_minima = dt.date.today() + dt.timedelta(days=2)
-
-                    if fecha < fecha_minima:
-                        print("La reservación debe ser por lo menos con dos días de anticipación.")
-                        continue
-
-                    while True:
-                        self.reservaciones.mostrar_salas_disponibles(self.salas.lista, fecha)
-                        try:
-                            id_sala = int(input("Escriba el ID de la sala a escoger: "))
-
-                            if id_sala not in self.salas.lista:
-                                print("ID de sala no válido.")
-
-                                confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                                if confirmar_salida.upper() == "S":
-                                    salir = True
-                                    break
-
-                            break
-
-                        except ValueError:
-                            print("Error: Formato inválido")
-
-                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                            if confirmar_salida.upper() == "S":
-                                salir = True
-                                break
-
-                            continue
-
-                    if salir:
-                        salir = False
-                        continue  #Volver al menú principal
-
-                    while True:
-                        turno = input("Escriba el turno a escoger (Matutino, Vespertino, Nocturno): ").capitalize()
-
-                        if turno not in self.reservaciones.turnos:
-                            print("Turno no válido.")
-
-                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                            if confirmar_salida.upper() == "S":
-                                salir = True
-                                break
-
-                            continue
-
-                        if not self.reservaciones.verificar_disponibilidad(fecha, id_sala, turno):
-                            print("No hay disponibilidad en ese turno para esta sala.")
-
-                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                            if confirmar_salida.upper() == "S":
-                                salir = True
-                                break
-
-                            continue
-
-                        break
-
-                    if salir:
-                        salir = False
-                        continue  #Volver al menú principal
-
-                    print("Hay disponibilidad.")
-
-                    while True:
-                        nombre_evento = input("Escriba el nombre del evento: ").strip()
-                        if not nombre_evento or len(nombre_evento) < 3:
-                            print("Escriba un nombre válido (mínimo 3 caracteres).")
-
-                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-                            if confirmar_salida.upper() == "S":
-                                salir = True
-                                break
-
-                            continue
-
-                        break
-
-                    if salir:
-                        salir = False
-                        continue  #Volver al menú principal
-
-                    self.reservaciones.registrar_reservacion(id_cliente, fecha, turno, id_sala, nombre_evento)
-
+                    self.__registrar_reservacion_sala()
                 case 2:
-                    print("Ha escogido la opción: Editar el nombre de una reservación ya hecha")
-
-                    while True:
-                        try:
-                            fecha_inicio_str = input("Escriba la fecha de inicio del rango (dd/mm/aaaa): ")
-                            fecha_inicio = dt.datetime.strptime(fecha_inicio_str, "%d/%m/%Y").date()
-                            fecha_fin_str = input("Escriba la fecha de fin del rango (dd/mm/aaaa): ")
-                            fecha_fin = dt.datetime.strptime(fecha_fin_str, "%d/%m/%Y").date()
-                            if fecha_inicio > fecha_fin:
-                                print("La fecha de inicio no puede ser posterior a la de fin.")
-                                continue
-                            break
-                        except ValueError:
-                            print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
-
-                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                            if confirmar_salida.upper() == "S":
-                                salir = True
-                                break
-
-                            continue
-
-                    if salir:
-                        salir = False
-                        continue  #Volver al menú principal
-
-
-                    folios_validos = self.reservaciones.mostrar_reservaciones_en_rango(fecha_inicio, fecha_fin)
-
-                    if not folios_validos:
-                        print("No hay eventos en este rango de fechas.")
-                        continue
-
-                    folio = None
-                    while True:
-                        folio = input("Escriba el folio del evento a modificar: ")
-
-                        if folio not in folios_validos:
-                            print("Folio no válido en este rango. Por favor, seleccione uno de la lista.")
-
-                            continuar = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-                            if continuar.upper() == "S":
-                                break
-
-                            continue
-
-                        break
-
-                    if folio not in folios_validos:
-                        continue  # Cancelado, volver al menú principal
-
-                    while True:
-                        nuevo_nombre = input("Escriba el nuevo nombre del evento: ").strip()
-                        if not nuevo_nombre or len(nuevo_nombre) < 3:
-                            print("Escriba un nombre válido (mínimo 3 caracteres).")
-                            continue
-
-                        break
-
-                    self.reservaciones.editar_nombre_evento(folio, nuevo_nombre)
-
+                    self.__editar_nombre_reservacion()
                 case 3:
-                    print("Ha escogido la opción: Consultar reservaciones de una fecha específica")
-
-                    while True:
-                        try:
-                            fecha_str = input("Escriba la fecha a consultar (dd/mm/aaaa): ")
-                            fecha = dt.datetime.strptime(fecha_str, "%d/%m/%Y").date()
-                            break
-                        except ValueError:
-                            print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
-
-                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                            if confirmar_salida.upper() == "S":
-                                salir = True
-                                break
-
-                    if salir:
-                        salir = False
-                        continue #Volver al menú principal
-
-                    self.reservaciones.mostrar_reservaciones_por_fecha(fecha, self.salas.lista, self.clientes.lista)
-                    #TODO: Permitir exportarlo a JSON
-
+                    self.__consultar_reservaciones_fecha()
                 case 4:
-                    print("Ha escogido la opción: Registrar a un nuevo cliente.")
-
-                    while True:
-
-                        while True:
-                            nombre = input("Escriba su nombre: ")
-
-                            if not nombre.strip():
-                                print("El nombre no puede estar vacío.")
-
-                                confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                                if confirmar_salida.upper() == "S":
-                                    salir = True
-                                    break
-
-                                continue
-
-                            break
-
-                        if salir:
-                            salir = False
-                            break  #Volver al menú principal
-
-                        while True:
-                            apellidos = input("Escriba sus apellidos: ")
-
-                            if not apellidos.strip():
-                                print("Los apellidos no pueden estar vacíos.")
-
-                                confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                                if confirmar_salida.upper() == "S":
-                                    salir = True
-                                    break
-
-                                continue
-                            break
-
-                        if salir:
-                            salir = False
-                            break  #Volver al menú principal
-
-                        if self.clientes.registrar_cliente(nombre, apellidos):
-                            break
-
+                    self.__registrar_nuevo_cliente()
                 case 5:
-                    print("Ha escogido la opción: registrar nueva sala")
-                    while True:
-
-                        nombre_sala = input("Escriba el nombre de la sala: ")
-
-                        if nombre_sala.strip() == "" or len(nombre_sala.strip()) < 2:
-                            print("Error, el nombre de la sala no puede estar vacio o tener menos de 2 caracteres.")
-
-                            confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                            if confirmar_salida.upper() == "S":
-                                salir = True
-                                break
-
-                            continue
-
-                        if salir:
-                            salir = False
-                            continue  #Volver al menú principal
-
-                        while True:
-                            cupo_str = input("Escriba el cupo de la sala: ")
-
-                            if cupo_str.strip() == "":
-                                print("Error, el cupo no puede estar vacío.")
-
-                                confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                                if confirmar_salida.upper() == "S":
-                                    salir = True
-                                    break
-
-                                continue
-
-                            try:
-                                cupo = int(cupo_str)
-                            except ValueError:
-                                print("Valor inválido")
-
-                                confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
-
-                                if confirmar_salida.upper() == "S":
-                                    salir = True
-                                    break
-                                continue
-                            break
-
-                        if salir:
-                            salir = False
-                            break  #Volver al menú principal
-
-                        self.salas.registrar_sala(nombre_sala, cupo)
-                        break
-
+                    self.__registrar_nueva_sala()
                 case 6:
                     print("Saliendo del programa... ¿Quiere guardar su progreso?")
 
@@ -583,19 +513,8 @@ class Coworking:
 
                         match guardar.capitalize():
                             case "S":
-                                with open("reservaciones.json", "w") as archivo:
-                                    lista_exportada = self.reservaciones.lista
-                                    for id, datos in lista_exportada.items():
-                                        lista_exportada[id]["fecha"] = datos["fecha"].isoformat()
-                                    json.dump(lista_exportada, archivo, indent=2)
-
-                                with open("clientes.json", "w") as archivo:
-                                    json.dump(self.clientes.lista, archivo, indent=2)
-
-                                with open("salas.json", "w") as archivo:
-                                    json.dump(self.salas.lista, archivo, indent=2)
+                                self.__guardar_datos()
                                 break
-
                             case "N":
                                 break
 
