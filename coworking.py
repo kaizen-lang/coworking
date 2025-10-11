@@ -530,7 +530,10 @@ if __name__ == "__main__":
             for id, datos in lista_importada.items():
                 lista_importada[id]["fecha"] = dt.date.fromisoformat(datos["fecha"])
             reservaciones = ManejarReservaciones(lista_importada)
-
+            
+            if reservaciones.lista:
+                reservaciones.contador_folio = max(map(int, reservaciones.lista.keys()))
+                
         with open("clientes.json", "r") as archivo:
             lista_importada = json.load(archivo)
             clientes = ManejarClientes(lista_importada)
