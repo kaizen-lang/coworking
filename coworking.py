@@ -35,7 +35,7 @@ class ManejarReservaciones:
                 self.contador_folio = 0
         else:
             self.contador_folio = 0
-              
+
     def registrar_reservacion(self, id_cliente: str, fecha, turno: str, id_sala: str, nombre_evento: str):
         self.contador_folio += 1
         folio = self.contador_folio
@@ -157,7 +157,7 @@ class ManejarSalas:
                 self.contador_salas = 0
         else:
             self.contador_salas = 0
-            
+
     def registrar_sala(self, nombre: str, cupo: int):
         self.contador_salas += 1
         id_sala = self.contador_salas
@@ -192,7 +192,7 @@ class ManejarClientes:
                 self.contador_clientes = 0
         else:
             self.contador_clientes = 0
-            
+
     def registrar_cliente(self, nombre: str, apellidos: str) -> bool:
 
         self.contador_clientes += 1
@@ -289,7 +289,7 @@ class Coworking:
         while True:
             self.reservaciones.mostrar_salas_disponibles(self.salas.lista, fecha)
             try:
-                id_sala = int(input("Escriba el ID de la sala a escoger: "))
+                id_sala = int(self.__pedir_string("Escriba el ID de la sala a escoger: "))
 
                 if id_sala not in self.salas.lista:
                     print("ID de sala no válido.")
@@ -548,19 +548,26 @@ if __name__ == "__main__":
         #Intentamos recuperar un estado previo del programa, en caso de que existan los archivos JSON.
         with open("reservaciones.json", "r") as archivo:
             lista_importada = json.load(archivo)
+            lista_importada = dict([int(id), datos] for id, datos in lista_importada.items())
+
             for id, datos in lista_importada.items():
                 lista_importada[id]["fecha"] = dt.date.fromisoformat(datos["fecha"])
+
             reservaciones = ManejarReservaciones(lista_importada)
 
             if reservaciones.lista:
               reservaciones.contador_folio = max(map(int, reservaciones.lista.keys()))
-                
+
         with open("clientes.json", "r") as archivo:
             lista_importada = json.load(archivo)
+            lista_importada = dict([int(id), datos] for id, datos in lista_importada.items())
+
             clientes = ManejarClientes(lista_importada)
 
         with open("salas.json", "r") as archivo:
             lista_importada = json.load(archivo)
+            lista_importada = dict([int(id), datos] for id, datos in lista_importada.items())
+
             salas = ManejarSalas(lista_importada)
 
         #Pasamos las clases con los datos cargados al constructor de Coworking
