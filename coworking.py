@@ -1,8 +1,10 @@
-
 """Script de coworking."""
 
 import datetime as dt
 import json
+import csv #TODO: Implementar exportación a CSV
+import openpyxl
+from openpyxl.styles import Font, Alignment, Border, Side
 
 class ManejarReservaciones:
 
@@ -22,7 +24,6 @@ class ManejarReservaciones:
 
     lista = {}
     turnos = ("Matutino", "Vespertino", "Nocturno")
-    #TODO: Arreglar bug del contador de folios al cargar desde JSON
     contador_folio = 0
 
     def __init__(self, lista:dict = None):
@@ -38,7 +39,7 @@ class ManejarReservaciones:
 
     def registrar_reservacion(self, id_cliente: str, fecha, turno: str, id_sala: str, nombre_evento: str):
         self.contador_folio += 1
-        folio = self.contador_folio
+        folio = str(self.contador_folio)
 
         self.lista[folio] = {
             "id_cliente": id_cliente,
@@ -102,6 +103,8 @@ class ManejarReservaciones:
         if not encontrados:
             print("No hay reservaciones para esta fecha.")
 
+        return encontrados
+
     def mostrar_reservaciones_en_rango(self, fecha_inicio, fecha_fin):
         #Mostrar en formato tabular: folio, nombre evento, fecha
         print(f"\nEventos en el rango de fechas {fecha_inicio} a {fecha_fin}:")
@@ -160,7 +163,7 @@ class ManejarSalas:
 
     def registrar_sala(self, nombre: str, cupo: int):
         self.contador_salas += 1
-        id_sala = self.contador_salas
+        id_sala = str(self.contador_salas)
 
         self.lista[id_sala] = {"Nombre": nombre.strip(), "Cupo": cupo}
 
@@ -196,7 +199,7 @@ class ManejarClientes:
     def registrar_cliente(self, nombre: str, apellidos: str) -> bool:
 
         self.contador_clientes += 1
-        id_cliente = self.contador_clientes
+        id_cliente = str(self.contador_clientes)
 
         self.lista[id_cliente] = {"Nombre": nombre, "Apellidos": apellidos}
 
@@ -252,7 +255,7 @@ class Coworking:
             self.clientes.mostrar_clientes()
 
             try:
-                id_cliente = int(self.__pedir_string("Escriba su ID de cliente: "))
+                id_cliente = self.__pedir_string("Escriba su ID de cliente: ")
 
                 if id_cliente not in self.clientes.lista:
                     print("Por favor escriba un ID válido.")
@@ -289,7 +292,7 @@ class Coworking:
         while True:
             self.reservaciones.mostrar_salas_disponibles(self.salas.lista, fecha)
             try:
-                id_sala = int(self.__pedir_string("Escriba el ID de la sala a escoger: "))
+                id_sala = self.__pedir_string("Escriba el ID de la sala a escoger: ")
 
                 if id_sala not in self.salas.lista:
                     print("ID de sala no válido.")
@@ -382,7 +385,7 @@ class Coworking:
         while True:
             try:
                 folio_str = self.__pedir_string("Escriba el folio del evento a modificar: ")
-                folio = int(folio_str)
+                folio = folio_str
 
                 if folio not in folios_validos:
                     print("Folio no válido en este rango. Por favor, seleccione uno de la lista.")
@@ -421,8 +424,78 @@ class Coworking:
                     return #Salir de la función, regresa al menú principal
                 continue
 
-        self.reservaciones.mostrar_reservaciones_por_fecha(fecha, self.salas.lista, self.clientes.lista)
-        #TODO: Permitir exportarlo a JSON
+        encontrados = self.reservaciones.mostrar_reservaciones_por_fecha(fecha, self.salas.lista, self.clientes.lista)
+
+        if encontrados:
+            # Bloque agregado para exportar reservaciones
+            exportar = input("¿Desea exportar estas reservaciones? (SI/NO): ").upper()
+            if exportar == "SI":
+                # Preguntar el formato
+                formato = input("Seleccione el formato de exportación: JSON, CSV o EXCEL: ").upper()
+                
+                # Filtrar las reservaciones por la fecha seleccionada
+                reservaciones_fecha = {
+                    folio: datos
+                    for folio, datos in self.reservaciones.lista.items()
+                    if datos["fecha"] == fecha
+                }
+
+                # JSON
+                if formato == "JSON":
+                    for datos in reservaciones_fecha.values():
+                        datos["fecha"] = datos["fecha"].isoformat()
+                    with open(f"reservaciones_{fecha.isoformat()}.json", "w") as archivo:
+                        json.dump(reservaciones_fecha, archivo, indent=2)
+                    print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha.isoformat()}.json'")
+
+                # CSV
+                elif formato == "CSV":
+                  with open(f"reservaciones_{fecha.isoformat()}.csv", "w", newline="") as archivo:
+                    archivo.write(f"{'Folio':<6} {'ID Cliente':<12} {'Fecha':<12} {'Turno':<10} {'ID Sala':<10} {'Nombre Evento':<20}\n")
+        
+                    for folio, datos in reservaciones_fecha.items():
+                      archivo.write(f"{folio:<6} {datos['id_cliente']:<12} {datos['fecha'].isoformat():<12} {datos['turno']:<10} {datos['id_sala']:<10} {datos['nombre_evento']:<20}\n")
+
+                # Excel
+                elif formato == "EXCEL":
+                  reservaciones_filtradas = {
+                    folio: datos
+                    for folio, datos in self.reservaciones.lista.items()
+                    if datos["fecha"] == fecha
+                  }  
+
+                  libro = openpyxl.Workbook()
+                  hoja = libro.active
+                  hoja.title = f"Reservaciones_{fecha.isoformat()}"
+
+                  # Estilos
+                  negrita = Font(bold=True)
+                  centrado = Alignment(horizontal="center", vertical="center")
+                  borde_grueso = Border(bottom=Side(border_style="thick"))
+
+                  # Encabezados
+                  encabezados = ["Folio", "ID Cliente", "Fecha", "Turno", "ID Sala", "Nombre Evento"]
+                  for columna, titulo in enumerate(encabezados, start=1):
+                    celda = hoja.cell(row=1, column=columna, value=titulo)
+                    celda.font = negrita
+                    celda.alignment = centrado
+                    celda.border = borde_grueso
+
+                  # Datos
+                  for renglon, (folio, datos) in enumerate(reservaciones_filtradas.items(), start=2):
+                    hoja.cell(row=renglon, column=1, value=folio).alignment = centrado
+                    hoja.cell(row=renglon, column=2, value=datos["id_cliente"]).alignment = centrado
+                    hoja.cell(row=renglon, column=3, value=datos["fecha"].isoformat()).alignment = centrado
+                    hoja.cell(row=renglon, column=4, value=datos["turno"]).alignment = centrado
+                    hoja.cell(row=renglon, column=5, value=datos["id_sala"]).alignment = centrado
+                    hoja.cell(row=renglon, column=6, value=datos["nombre_evento"]).alignment = centrado
+
+                  # Guardar archivo
+                  libro.save(f"reservaciones_{fecha.isoformat()}.xlsx")
+                  print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha.isoformat()}.xlsx'")
+
+                else:
+                    print("Formato no válido. Opciones disponibles: JSON, CSV, EXCEL.")
 
     def __registrar_nuevo_cliente(self):
         print("Ha escogido la opción: Registrar a un nuevo cliente.")
@@ -473,9 +546,9 @@ class Coworking:
         self.salas.registrar_sala(nombre_sala, cupo)
 
     def __guardar_datos(self):
-        """Guarda las listas actuales en archivos JSON."""
+        """Guarda las listas actuales en archivos JSON para persistencia."""
         with open("reservaciones.json", "w") as archivo:
-            lista_exportada = self.reservaciones.lista
+            lista_exportada = self.reservaciones.lista.copy()
             for id, datos in lista_exportada.items():
                 lista_exportada[id]["fecha"] = datos["fecha"].isoformat()
             json.dump(lista_exportada, archivo, indent=2)
@@ -486,6 +559,35 @@ class Coworking:
         with open("salas.json", "w") as archivo:
             json.dump(self.salas.lista, archivo, indent=2)
 
+        print("Datos guardados correctamente en formato JSON.")
+
+    def _Coworking__cargar_datos(self):
+        """Carga las listas desde archivos JSON para persistencia. Retorna las instancias cargadas."""
+
+        try:
+            with open("reservaciones.json", "r") as archivo:
+                lista_importada = json.load(archivo)
+                for id, datos in lista_importada.items():
+                    lista_importada[id]["fecha"] = dt.date.fromisoformat(datos["fecha"])
+                reservaciones = ManejarReservaciones(lista_importada)
+        except FileNotFoundError:
+            reservaciones = ManejarReservaciones()
+
+        try:
+            with open("clientes.json", "r") as archivo:
+                lista_importada = json.load(archivo)
+                clientes = ManejarClientes(lista_importada)
+        except FileNotFoundError:
+            clientes = ManejarClientes()
+
+        try:
+            with open("salas.json", "r") as archivo:
+                lista_importada = json.load(archivo)
+                salas = ManejarSalas(lista_importada)
+        except FileNotFoundError:
+            salas = ManejarSalas()
+
+        return clientes, salas, reservaciones
 
     def mostrar_menu(self):
 
@@ -530,51 +632,24 @@ class Coworking:
                     print("Saliendo del programa... ¿Quiere guardar su progreso?")
 
                     while True:
-                        guardar = input("Escriba S para guardar o N para salir sin guardar: ")
+                        guardar = input("Escriba S para guardar o N para salir sin guardar: ").upper()
 
-                        match guardar.capitalize():
-                            case "S":
-                                self.__guardar_datos()
-                                break
-                            case "N":
-                                break
+                        if guardar == "N":
+                            break
+
+                        if guardar == "S":
+                            self.__guardar_datos()
+                            break
 
                     break
 
 if __name__ == "__main__":
     #Este código solo se ejecuta si el script es el programa principal.
 
-    try:
-        #Intentamos recuperar un estado previo del programa, en caso de que existan los archivos JSON.
-        with open("reservaciones.json", "r") as archivo:
-            lista_importada = json.load(archivo)
-            lista_importada = dict([int(id), datos] for id, datos in lista_importada.items())
+    # Crear una instancia temporal para llamar al método de carga
+    temp = Coworking()
+    clientes, salas, reservaciones = temp._Coworking__cargar_datos()
 
-            for id, datos in lista_importada.items():
-                lista_importada[id]["fecha"] = dt.date.fromisoformat(datos["fecha"])
-
-            reservaciones = ManejarReservaciones(lista_importada)
-
-            if reservaciones.lista:
-              reservaciones.contador_folio = max(map(int, reservaciones.lista.keys()))
-
-        with open("clientes.json", "r") as archivo:
-            lista_importada = json.load(archivo)
-            lista_importada = dict([int(id), datos] for id, datos in lista_importada.items())
-
-            clientes = ManejarClientes(lista_importada)
-
-        with open("salas.json", "r") as archivo:
-            lista_importada = json.load(archivo)
-            lista_importada = dict([int(id), datos] for id, datos in lista_importada.items())
-
-            salas = ManejarSalas(lista_importada)
-
-        #Pasamos las clases con los datos cargados al constructor de Coworking
-        programa = Coworking(clientes, salas, reservaciones)
-
-    except FileNotFoundError:
-        #Si no existen los archivos, se crean las clases con listas vacías
-        programa = Coworking()
+    programa = Coworking(clientes, salas, reservaciones)
 
     programa.mostrar_menu()
