@@ -671,37 +671,32 @@ class Coworking:
 
         print("Datos guardados correctamente en formato JSON.")
 
-    def cargar_datos(self) -> tuple[ManejarClientes, ManejarSalas, ManejarReservaciones]:
-        """Carga las listas desde archivos JSON para persistencia. Retorna las instancias cargadas.
-
-        Returns:
-            tuple[ManejarClientes, ManejarSalas, ManejarReservaciones]: Tupla con instancias de ManejarClientes, ManejarSalas y ManejarReservaciones.
-        """
+    def cargar_datos(self) -> None:
+        """Carga las listas desde archivos JSON a los atributos de la instancia."""
 
         try:
             with open("reservaciones.json", "r") as archivo:
                 lista_importada = json.load(archivo)
                 for id, datos in lista_importada.items():
                     lista_importada[id]["fecha"] = dt.date.fromisoformat(datos["fecha"])
-                reservaciones = ManejarReservaciones(lista_importada)
+                self.reservaciones = ManejarReservaciones(lista_importada)
         except FileNotFoundError:
-            reservaciones = ManejarReservaciones()
+            self.reservaciones = ManejarReservaciones()
 
         try:
             with open("clientes.json", "r") as archivo:
                 lista_importada = json.load(archivo)
-                clientes = ManejarClientes(lista_importada)
+                self.clientes = ManejarClientes(lista_importada)
         except FileNotFoundError:
-            clientes = ManejarClientes()
+            self.clientes = ManejarClientes()
 
         try:
             with open("salas.json", "r") as archivo:
                 lista_importada = json.load(archivo)
-                salas = ManejarSalas(lista_importada)
+                self.salas = ManejarSalas(lista_importada)
         except FileNotFoundError:
-            salas = ManejarSalas()
+            self.salas = ManejarSalas()
 
-        return clientes, salas, reservaciones
 
     def mostrar_menu(self) -> None:
         """Muestra al usuario una interfaz de texto para poder realizar diversas acciones dentro del coworking."""
@@ -761,11 +756,7 @@ class Coworking:
 if __name__ == "__main__":
     #Este código solo se ejecuta si el script es el programa principal.
 
-    # Crear una instancia temporal para llamar al método de carga
-    temp = Coworking()
-    clientes, salas, reservaciones = temp.cargar_datos()
-
-    #Le pasamos las instancias generadas al programa.
-    programa = Coworking(clientes, salas, reservaciones)
+    programa = Coworking()
+    programa.cargar_datos()
 
     programa.mostrar_menu()
