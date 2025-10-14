@@ -22,13 +22,11 @@ class ManejarReservaciones:
         }
     """
 
-    lista = {}
-    turnos = ("Matutino", "Vespertino", "Nocturno")
-    contador_folio = 0
-
     def __init__(self, lista:dict = None):
         #En caso de que no se pase una lista, se crea una vacía, para evitar que se comparta entre instancias.
         self.lista = lista or {}
+        self.turnos = ("Matutino", "Vespertino", "Nocturno")
+
         if self.lista:
             try:
                 self.contador_folio = max(map(int, self.lista.keys()))
@@ -147,12 +145,10 @@ class ManejarSalas:
         }
     """
 
-    lista = {}
-    contador_salas = 0
-
     def __init__(self, lista = None):
         #En caso de que no se pase una lista, se crea una vacía, para evitar que se comparta entre instancias.
         self.lista = lista or {}
+
         if self.lista:
             try:
                 self.contador_salas = max(map(int, self.lista.keys()))
@@ -181,9 +177,6 @@ class ManejarClientes:
             }
         }
     """
-
-    lista = {}
-    contador_clientes = 0
 
     def __init__(self, lista = None):
         #En caso de que no se pase una lista, se crea una vacía, para evitar que se comparta entre instancias.
@@ -222,11 +215,6 @@ class ManejarClientes:
             print(f"{id_cliente:<15} {nombre:<20} {apellidos:<20}")
 
 class Coworking:
-
-    #Establecemos el tipo de cada atributo
-    clientes = ManejarClientes
-    salas = ManejarSalas
-    reservaciones = ManejarReservaciones
 
     def __init__(self, clientes:ManejarClientes = None, salas:ManejarSalas = None, reservaciones:ManejarReservaciones = None):
         #En caso de que no se pasen argumentos, se crean las clases con listas vacías.
@@ -432,7 +420,7 @@ class Coworking:
             if exportar == "SI":
                 # Preguntar el formato
                 formato = input("Seleccione el formato de exportación: JSON, CSV o EXCEL: ").upper()
-                
+
                 # Filtrar las reservaciones por la fecha seleccionada
                 reservaciones_fecha = {
                     folio: datos
@@ -444,17 +432,18 @@ class Coworking:
                 if formato == "JSON":
                     for datos in reservaciones_fecha.values():
                         datos["fecha"] = datos["fecha"].isoformat()
-                    with open(f"reservaciones_{fecha.isoformat()}.json", "w") as archivo:
-                        json.dump(reservaciones_fecha, archivo, indent=2)
+                    with open(f"reservaciones_{fecha.isoformat()}.json", "w", encoding="utf-8") as archivo:
+                        json.dump(reservaciones_fecha, archivo, indent=2, ensure_ascii=False)
                     print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha.isoformat()}.json'")
 
                 # CSV
                 elif formato == "CSV":
-                  with open(f"reservaciones_{fecha.isoformat()}.csv", "w", newline="") as archivo:
-                    archivo.write(f"{'Folio':<6} {'ID Cliente':<12} {'Fecha':<12} {'Turno':<10} {'ID Sala':<10} {'Nombre Evento':<20}\n")
-        
+                  with open(f"reservaciones_{fecha.isoformat()}.csv", "w", newline="", encoding="utf-8") as archivo:
+                    manejar_csv = csv.writer(archivo)
+                    manejar_csv.writerow(("Folio", "ID Cliente", "Fecha", "Turno", "ID Sala", "Nombre Evento"))
+
                     for folio, datos in reservaciones_fecha.items():
-                      archivo.write(f"{folio:<6} {datos['id_cliente']:<12} {datos['fecha'].isoformat():<12} {datos['turno']:<10} {datos['id_sala']:<10} {datos['nombre_evento']:<20}\n")
+                      manejar_csv.writerow((datos['id_cliente'], datos['fecha'].isoformat(), datos['turno'], datos['id_sala'], datos['nombre_evento']))
 
                 # Excel
                 elif formato == "EXCEL":
@@ -462,7 +451,7 @@ class Coworking:
                     folio: datos
                     for folio, datos in self.reservaciones.lista.items()
                     if datos["fecha"] == fecha
-                  }  
+                  }
 
                   libro = openpyxl.Workbook()
                   hoja = libro.active
@@ -545,7 +534,7 @@ class Coworking:
 
         self.salas.registrar_sala(nombre_sala, cupo)
 
-    def __guardar_datos(self):
+    def guardar_datos(self):
         """Guarda las listas actuales en archivos JSON para persistencia."""
         with open("reservaciones.json", "w") as archivo:
             lista_exportada = self.reservaciones.lista.copy()
@@ -561,7 +550,7 @@ class Coworking:
 
         print("Datos guardados correctamente en formato JSON.")
 
-    def _Coworking__cargar_datos(self):
+    def cargar_datos(self):
         """Carga las listas desde archivos JSON para persistencia. Retorna las instancias cargadas."""
 
         try:
@@ -638,7 +627,7 @@ class Coworking:
                             break
 
                         if guardar == "S":
-                            self.__guardar_datos()
+                            self.guardar_datos()
                             break
 
                     break
@@ -648,7 +637,7 @@ if __name__ == "__main__":
 
     # Crear una instancia temporal para llamar al método de carga
     temp = Coworking()
-    clientes, salas, reservaciones = temp._Coworking__cargar_datos()
+    clientes, salas, reservaciones = temp.cargar_datos()
 
     programa = Coworking(clientes, salas, reservaciones)
 
