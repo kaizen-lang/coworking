@@ -2,7 +2,7 @@
 
 import datetime as dt
 import json
-import csv #TODO: Implementar exportación a CSV
+import csv
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side
 
@@ -22,7 +22,7 @@ class ManejarReservaciones:
         }
     """
 
-    def __init__(self, lista:dict = None):
+    def __init__(self, lista: dict = None):
         #En caso de que no se pase una lista, se crea una vacía, para evitar que se comparta entre instancias.
         self.lista = lista or {}
         self.turnos = ("Matutino", "Vespertino", "Nocturno")
@@ -35,7 +35,17 @@ class ManejarReservaciones:
         else:
             self.contador_folio = 0
 
-    def registrar_reservacion(self, id_cliente: str, fecha, turno: str, id_sala: str, nombre_evento: str):
+    def registrar_reservacion(self, id_cliente: str, fecha: dt.date, turno: str, id_sala: str, nombre_evento: str) -> None:
+        """Registra una reservación nueva en la lista.
+
+        Args:
+            id_cliente (str): ID del cliente que hace la reservación.
+            fecha (dt.date): Fecha de la reservación.
+            turno (str): Turno de la reservación.
+            id_sala (str): ID de la sala a reservar.
+            nombre_evento (str): Nombre del evento a realizar.
+        """
+
         self.contador_folio += 1
         folio = str(self.contador_folio)
 
@@ -49,8 +59,17 @@ class ManejarReservaciones:
 
         print(f"Evento registrado de manera exitosa con el folio: {folio}")
 
-    def mostrar_salas_disponibles(self, lista_salas: dict, fecha):
-        #Mostrar las salas con turnos disponibles en formato tabular
+    def mostrar_salas_disponibles(self, lista_salas: dict, fecha:dt.date)->bool:
+        """Muestra las salas disponibles en formato tabular.
+
+        Args:
+            lista_salas (dict): Lista que contiene las salas registradas.
+            fecha (dt.date): Fecha a consultar.
+
+        Returns:
+            bool: True si hay salas disponibles, False si no las hay.
+        """
+
         print(f"\nSalas disponibles para la fecha {fecha}:")
         print(f"{'ID Sala':<15} {'Nombre':<20} {'Cupo':<10} {'Turnos Disponibles':<15}")
         print("-" * 60)
@@ -71,7 +90,18 @@ class ManejarReservaciones:
 
         return True
 
-    def verificar_disponibilidad(self, fecha, id_sala, turno):
+    def verificar_disponibilidad(self, fecha: dt.date, id_sala: str, turno: str)->bool:
+        """Verifica si una sala está disponible en una fecha, sala y turno específicos.
+
+        Args:
+            fecha (date): Fecha a consultar.
+            id_sala (str): ID de la sala a consultar.
+            turno (str): Turno a consultar.
+
+        Returns:
+            bool: True si está disponible, False si no lo está.
+        """
+
         for reservacion in self.lista.values():  #Iteramos por cada reservación para realizar el filtro
             fecha_reservacion, turno_reservacion, id_sala_reservada = reservacion["fecha"], reservacion["turno"], reservacion["id_sala"]
 
@@ -80,8 +110,18 @@ class ManejarReservaciones:
 
         return True
 
-    def mostrar_reservaciones_por_fecha(self, fecha, lista_salas, lista_clientes):
-        #Mostrar en formato tabular
+    def mostrar_reservaciones_por_fecha(self, fecha: dt.date, lista_salas: dict, lista_clientes: dict) -> bool:
+        """Muestra las reservaciones por fecha en formato tabular.
+
+        Args:
+            fecha (dt.date): Fecha a consultar.
+            lista_salas (dict): Lista con las salas disponibles.
+            lista_clientes (dict): Lista con los clientes registrados.
+
+        Returns:
+            bool: True si se encontraron reservaciones, False si no.
+        """
+
         print(f"\nReporte de reservaciones para la fecha {fecha}:")
         print(f"{'Sala':<15} {'Cliente':<20} {'Evento':<30} {'Turno':<15}")
         print("-" * 80)
@@ -103,8 +143,17 @@ class ManejarReservaciones:
 
         return encontrados
 
-    def mostrar_reservaciones_en_rango(self, fecha_inicio, fecha_fin):
-        #Mostrar en formato tabular: folio, nombre evento, fecha
+    def mostrar_reservaciones_en_rango(self, fecha_inicio: dt.date, fecha_fin: dt.date) -> list:
+        """Muestra las reservaciones como formato tabular dentro de un rango de fechas definido.
+
+        Args:
+            fecha_inicio (date): Fecha de inicio a consultar.
+            fecha_fin (date): Fecha fin a consultar.
+
+        Returns:
+            list: Lista de folios válidos en el rango.
+        """
+
         print(f"\nEventos en el rango de fechas {fecha_inicio} a {fecha_fin}:")
         print(f"{'Folio':<15} {'Nombre Evento':<30} {'Fecha':<15}")
         print("-" * 60)
@@ -124,7 +173,14 @@ class ManejarReservaciones:
         #Retorna lista de folios válidos usando list comprehension: extrae solo el primer elemento (folio) de cada tupla, ignorando los otros con '_'
         return [folio for folio, _, _ in lista_eventos]  #Esto genera una lista plana de folios para validaciones en edición
 
-    def editar_nombre_evento(self, folio: str, nuevo_nombre: str):
+    def editar_nombre_evento(self, folio: str, nuevo_nombre: str) -> None:
+        """Edita el nombre de un evento ya existente.
+
+        Args:
+            folio (str): Folio del evento.
+            nuevo_nombre (str): Nuevo nombre que tendrá el evento.
+        """
+
         if folio in self.lista:
             self.lista[folio]["nombre_evento"] = nuevo_nombre
             print(f"Nombre del evento actualizado exitosamente para el folio {folio}.")
@@ -132,7 +188,6 @@ class ManejarReservaciones:
             print("Folio no encontrado.")
 
 class ManejarSalas:
-
     """Clase para el manejo de salas.
 
         Estructura de un registro promedio:
@@ -157,7 +212,14 @@ class ManejarSalas:
         else:
             self.contador_salas = 0
 
-    def registrar_sala(self, nombre: str, cupo: int):
+    def registrar_sala(self, nombre: str, cupo: int) -> None:
+        """Registra una sala dentro de la lista.
+
+        Args:
+            nombre (str): Nombre de la sala.
+            cupo (int): Cupo de la sala.
+        """
+
         self.contador_salas += 1
         id_sala = str(self.contador_salas)
 
@@ -166,7 +228,6 @@ class ManejarSalas:
         print(f"Sala registrada exitosamente con el ID: {id_sala}")
 
 class ManejarClientes:
-
     """Clase para el manejo de clientes.
 
         Estructura de registro promedio:
@@ -190,6 +251,15 @@ class ManejarClientes:
             self.contador_clientes = 0
 
     def registrar_cliente(self, nombre: str, apellidos: str) -> bool:
+        """Registra un cliente dentro de la lista.
+
+        Args:
+            nombre (str): Nombre del cliente.
+            apellidos (str): Apellidos del cliente.
+
+        Returns:
+            bool: True si el cliente se registró de manera exitosa.
+        """
 
         self.contador_clientes += 1
         id_cliente = str(self.contador_clientes)
@@ -200,7 +270,9 @@ class ManejarClientes:
 
         return True
 
-    def mostrar_clientes(self):
+    def mostrar_clientes(self) -> None:
+        """Muestra los clientes registrados en formato tabular."""
+
         #Ordenamos por apellidos y luego por nombres
         #El lambda hace que se tome en cuenta los apellidos y nombres como criterio para ordenar.
         ordenado = dict(sorted(self.lista.items(), key=lambda item: (item[1]["Apellidos"], item[1]["Nombre"])))
@@ -215,20 +287,38 @@ class ManejarClientes:
             print(f"{id_cliente:<15} {nombre:<20} {apellidos:<20}")
 
 class Coworking:
+    """Clase principal del coworking."""
 
-    def __init__(self, clientes:ManejarClientes = None, salas:ManejarSalas = None, reservaciones:ManejarReservaciones = None):
+    def __init__(self, clientes: ManejarClientes = None, salas: ManejarSalas = None, reservaciones: ManejarReservaciones = None):
         #En caso de que no se pasen argumentos, se crean las clases con listas vacías.
         self.clientes = clientes or ManejarClientes()
         self.salas = salas or ManejarSalas()
         self.reservaciones = reservaciones or ManejarReservaciones()
 
-    def __verificar_salida(self)->bool:
-        """Verifica si el usuario quiere salir de la operación actual. De esta forma evitamos repetir las validaciones flag."""
+    def __verificar_salida(self) -> bool:
+        """Verifica si el usuario quiere salir de la operación actual.
+        De esta forma evitamos repetir las validaciones flag.
+
+        Returns:
+            bool: True si el usuario quiere salir, False si quiere continuar.
+        """
+
         confirmar_salida = input("¿Quiere cancelar la operación? Escriba S para salir o cualquier tecla para continuar: ")
         return True if confirmar_salida.upper() == "S" else False
 
-    def __pedir_string(self, mensaje:str)->str:
-        """Pide una cadena no vacía al usuario y la devuelve en caso de que sea válida."""
+    def __pedir_string(self, mensaje: str) -> str:
+        """Pide una cadena no vacía al usuario y la devuelve en caso de que sea válida.
+
+        Args:
+            mensaje (str): Mensaje que se mostrará al usario para la entrada.
+
+        Raises:
+            ValueError: El usuario mandó un valor vacío.
+
+        Returns:
+            str: Entrada ya validada.
+        """
+
         while True:
             entrada = input(mensaje).strip()
             if not entrada:
@@ -236,7 +326,13 @@ class Coworking:
                 raise ValueError
             return entrada
 
-    def __registrar_reservacion_sala(self):
+    def __registrar_reservacion_sala(self) -> None:
+        """Opción #1 del menú. Permite registrar la reservación de una sala.
+
+        Returns:
+            None: Usado para salir de la función en caso de que el usuario lo decida.
+        """
+
         print("Ha escogido la opción: Registrar reservación de sala")
 
         while True:
@@ -336,7 +432,13 @@ class Coworking:
 
         self.reservaciones.registrar_reservacion(id_cliente, fecha, turno, id_sala, nombre_evento)
 
-    def __editar_nombre_reservacion(self):
+    def __editar_nombre_reservacion(self) -> None:
+        """Opción #2 del menú. Permite editar el nombre de una reservación ya hecha.
+
+        Returns:
+            None: Usado para salir de la función en caso de que el usuario lo decida.
+        """
+
         print("Ha escogido la opción: Editar el nombre de una reservación ya hecha")
 
         while True:
@@ -397,7 +499,13 @@ class Coworking:
 
         self.reservaciones.editar_nombre_evento(folio, nuevo_nombre)
 
-    def __consultar_reservaciones_fecha(self):
+    def __consultar_reservaciones_fecha(self) -> None:
+        """Opción #3 del menú. Permite consultar las reservaciones de una fecha específica.
+
+        Returns:
+            None: Usado para salir de la función en caso de que el usuario lo decida.
+        """
+
         print("Ha escogido la opción: Consultar reservaciones de una fecha específica")
 
         while True:
@@ -486,7 +594,13 @@ class Coworking:
                 else:
                     print("Formato no válido. Opciones disponibles: JSON, CSV, EXCEL.")
 
-    def __registrar_nuevo_cliente(self):
+    def __registrar_nuevo_cliente(self) -> None:
+        """Opción #4 del menú. Permite registrar a un nuevo cliente.
+
+        Returns:
+            None: Usado para salir de la función en caso de que el usuario lo decida.
+        """
+
         print("Ha escogido la opción: Registrar a un nuevo cliente.")
 
         while True:
@@ -509,7 +623,13 @@ class Coworking:
 
         self.clientes.registrar_cliente(nombre, apellidos)
 
-    def __registrar_nueva_sala(self):
+    def __registrar_nueva_sala(self) -> None:
+        """Opción #5 del menú. Registra una nueva sala.
+
+        Returns:
+            None: Usado para salir de la función en caso de que el usuario lo decida.
+        """
+
         print("Ha escogido la opción: registrar nueva sala")
 
         while True:
@@ -534,8 +654,9 @@ class Coworking:
 
         self.salas.registrar_sala(nombre_sala, cupo)
 
-    def guardar_datos(self):
+    def guardar_datos(self) -> None:
         """Guarda las listas actuales en archivos JSON para persistencia."""
+
         with open("reservaciones.json", "w") as archivo:
             lista_exportada = self.reservaciones.lista.copy()
             for id, datos in lista_exportada.items():
@@ -550,8 +671,12 @@ class Coworking:
 
         print("Datos guardados correctamente en formato JSON.")
 
-    def cargar_datos(self):
-        """Carga las listas desde archivos JSON para persistencia. Retorna las instancias cargadas."""
+    def cargar_datos(self) -> tuple[ManejarClientes, ManejarSalas, ManejarReservaciones]:
+        """Carga las listas desde archivos JSON para persistencia. Retorna las instancias cargadas.
+
+        Returns:
+            tuple[ManejarClientes, ManejarSalas, ManejarReservaciones]: Tupla con instancias de ManejarClientes, ManejarSalas y ManejarReservaciones.
+        """
 
         try:
             with open("reservaciones.json", "r") as archivo:
@@ -578,7 +703,8 @@ class Coworking:
 
         return clientes, salas, reservaciones
 
-    def mostrar_menu(self):
+    def mostrar_menu(self) -> None:
+        """Muestra al usuario una interfaz de texto para poder realizar diversas acciones dentro del coworking."""
 
         while True:
             print("\nBienvenido al programa del coworking.")
@@ -639,6 +765,7 @@ if __name__ == "__main__":
     temp = Coworking()
     clientes, salas, reservaciones = temp.cargar_datos()
 
+    #Le pasamos las instancias generadas al programa.
     programa = Coworking(clientes, salas, reservaciones)
 
     programa.mostrar_menu()
