@@ -6,6 +6,50 @@ import csv
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side
 
+import sqlite3
+import os
+
+def inicializar_base_datos():
+    """Crea coworking.db y las tablas básicas si no existen."""
+    with sqlite3.connect("coworking.db") as conn:
+        cursor = conn.cursor()
+
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS clientes (
+                id_cliente INTEGER PRIMARY KEY,
+                nombre TEXT NOT NULL,
+                apellidos TEXT NOT NULL
+            );
+        """)
+
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS salas (
+                id_sala INTEGER PRIMARY KEY,
+                nombre TEXT NOT NULL,
+                cupo INTEGER NOT NULL
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS reservaciones (
+                folio INTEGER PRIMARY KEY,
+                id_cliente INTEGER NOT NULL,
+                fecha TEXT NOT NULL,
+                turno TEXT NOT NULL,
+                id_sala INTEGER NOT NULL,
+                nombre_evento TEXT NOT NULL,
+                FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
+                FOREIGN KEY (id_sala) REFERENCES salas(id_sala)
+            );
+        """)
+
+
+if not os.path.exists("coworking.db"):
+    inicializar_base_datos()
+
+
 class ManejarReservaciones:
 
     """Clase para manejar reservaciones.
