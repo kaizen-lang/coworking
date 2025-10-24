@@ -46,10 +46,6 @@ def inicializar_base_datos():
         """)
 
 
-if not os.path.exists("coworking.db"):
-    inicializar_base_datos()
-
-
 class ManejarReservaciones:
 
     """Clase para manejar reservaciones.
@@ -799,6 +795,9 @@ class Coworking:
 
 if __name__ == "__main__":
     #Este código solo se ejecuta si el script es el programa principal.
+
+    if not os.path.exists("coworking.db"):
+        inicializar_base_datos()
 
     programa = Coworking()
     programa.cargar_datos()
