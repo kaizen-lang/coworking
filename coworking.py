@@ -2,6 +2,7 @@
 
 #TODO: Actualizar docstrings y type annotations a la versión actualizada.
 #TODO: Meter todo el SQL en bloques Try, manejar posibles excepciones
+#TODO: Manejar validaciones de si existen en X lista
 
 import datetime as dt
 import json
@@ -184,6 +185,7 @@ class ManejarReservaciones:
 
             cursor.execute("""
                 SELECT
+                    folio,
                     id_cliente,
                     fecha,
                     turno,
@@ -197,6 +199,8 @@ class ManejarReservaciones:
 
             if resultados:
                 print(resultados)
+                folios_validos = [fecha[0] for fecha in resultados]
+                return folios_validos
             else:
                 print("No hay reservaciones disponibles para esta fecha.")
 
@@ -220,18 +224,34 @@ class ManejarReservaciones:
             print("Nombre del evento actualizado exitosamente.")
         #TODO: ¿Y si el evento no existe?
 
+    def verificar_disponibilidad(fecha, id_sala, turno):
+        valores = (fecha, id_sala, turno)
+
+        with sqlite3.connect("coworking.db") as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT
+                    id_cliente,
+                    fecha,
+                    turno,
+                    id_sala,
+                    nombre_evento
+                FROM reservaciones
+                WHERE fecha = ?
+                AND id_sala = ?
+                AND turno = ?
+            """, valores)
+
+            resultados = cursor.fetchall()
+
+            if resultados:
+                return False
+
+        return True
+
 class ManejarSalas:
-    """Clase para el manejo de salas.
-
-        Estructura de un registro promedio:
-
-        lista = {
-            id_sala: {
-                Nombre: str,
-                Cupo: int
-            }
-        }
-    """
+    """Clase para el manejo de salas."""
 
     def __init__(self):
         pass
@@ -252,16 +272,7 @@ class ManejarSalas:
 
 
 class ManejarClientes:
-    """Clase para el manejo de clientes.
-
-        Estructura de registro promedio:
-        lista = {
-            id_cliente: {
-                Nombre: str,
-                Apellidos: str
-            }
-        }
-    """
+    """Clase para el manejo de clientes."""
 
     def __init__(self):
         pass
@@ -362,11 +373,7 @@ class Coworking:
             self.clientes.mostrar_clientes()
 
             try:
-                id_cliente = self.__pedir_string("Escriba su ID de cliente: ")
-
-                if id_cliente not in self.clientes.lista:
-                    print("Por favor escriba un ID válido.")
-                    raise ValueError
+                id_cliente = int(self.__pedir_string("Escriba su ID de cliente: "))
 
             except ValueError:
                 if self.__verificar_salida():
@@ -398,6 +405,7 @@ class Coworking:
                         continue
 
                 break
+
             except ValueError:
                 print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
 
@@ -407,29 +415,23 @@ class Coworking:
                 continue
 
         while True:
-            self.reservaciones.mostrar_salas_disponibles(self.salas.lista, fecha)
+            self.reservaciones.mostrar_salas_disponibles(fecha)
+
             try:
-                id_sala = self.__pedir_string("Escriba el ID de la sala a escoger: ")
-
-                if id_sala not in self.salas.lista:
-                    print("ID de sala no válido.")
-
-                    if self.__verificar_salida():
-                        return
+                id_sala = int(self.__pedir_string("Escriba el ID de la sala a escoger: "))
                 break
-
             except ValueError:
                 print("Error: Formato inválido")
 
                 if self.__verificar_salida():
-                    return 
+                    return
 
                 continue
 
         while True:
             turno = input("Escriba el turno a escoger (Matutino, Vespertino, Nocturno): ").capitalize()
 
-            if turno not in self.reservaciones.turnos:
+            if turno not in ("Matutino", "Vespertino", "Nocturno"):
                 print("Turno no válido.")
 
                 if self.__verificar_salida():
@@ -506,8 +508,7 @@ class Coworking:
 
         while True:
             try:
-                folio_str = self.__pedir_string("Escriba el folio del evento a modificar: ")
-                folio = folio_str
+                folio = int(self.__pedir_string("Escriba el folio del evento a modificar: "))
 
                 if folio not in folios_validos:
                     print("Folio no válido en este rango. Por favor, seleccione uno de la lista.")
