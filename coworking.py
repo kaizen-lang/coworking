@@ -46,9 +46,23 @@ class Coworking:
             fecha_formateada = fecha.isoformat()
             valores = (id_cliente, fecha_formateada, turno, id_sala, nombre_evento)
             try:
-                with sqlite3.connect("coworking.db", pragma="foreign_keys = ON") as conn:
+                with sqlite3.connect("coworking.db") as conn:
                     cursor = conn.cursor()
                     cursor.execute("PRAGMA foreign_keys = ON;")
+                    # Validación básica de existencia (integridad referencial)
+                    cursor.execute("SELECT 1 FROM clientes WHERE id_cliente = ?", (id_cliente,))
+                    if not cursor.fetchone():
+                        raise ValueError("Cliente no existe.")
+                    cursor.execute("SELECT 1 FROM salas WHERE id_sala = ?", (id_sala,))
+                    if not cursor.fetchone():
+                        raise ValueError("Sala no existe.")
+                    # Verificar disponibilidad
+                    cursor.execute("""
+                        SELECT 1 FROM reservaciones
+                        WHERE fecha = ? AND id_sala = ? AND turno = ?
+                    """, (fecha_formateada, id_sala, turno))
+                    if cursor.fetchone():
+                        raise ValueError("No disponible para ese turno.")
                     cursor.execute("""
                         INSERT INTO reservaciones (id_cliente, fecha, turno, id_sala, nombre_evento)
                         VALUES (?, ?, ?, ?, ?);
