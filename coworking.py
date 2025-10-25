@@ -4,6 +4,7 @@
 #TODO: Meter todo el SQL en bloques Try, manejar posibles excepciones
 #TODO: Manejar validaciones de si existen en X lista
 #TODO: Pasar de isoformat a mm-dd-yyyy
+#TODO: Checar el tema de las fechas
 
 import datetime as dt
 import json
@@ -90,7 +91,6 @@ class ManejarReservaciones:
         Returns:
             bool: True si hay salas disponibles, False si no las hay.
         """
-        #TODO: Reporte tabular
         valores = (fecha,)
 
         with sqlite3.connect("coworking.db") as conn:
@@ -129,7 +129,12 @@ class ManejarReservaciones:
             resultados = cursor.fetchall()
 
             if resultados:
-                print(resultados)
+                print(f"\n{"-"*75}")
+                print(f"|{"ID sala":^10}|{"Nombre":^10}|{"Cupo":^10}|{"Turnos disponibles":^40}|")
+                print("="*75)
+                for id_sala, nombre, cupo, turnos_disponibles in resultados:
+                    print(f"|{id_sala:^10}|{nombre:^10}|{cupo:^10}|{turnos_disponibles:^40}|")
+                print("-"*75)
             else:
                 print("No hay salas disponibles para esta fecha.")
 
@@ -142,10 +147,6 @@ class ManejarReservaciones:
         Returns:
             bool: True si se encontraron reservaciones, False si no.
         """
-
-        print(f"\nReporte de reservaciones para la fecha {fecha.strftime('%m-%d-%Y')}:")
-        print(f"{'Sala':<15} {'Cliente':<20} {'Evento':<30} {'Turno':<15}")
-        print("-" * 80)
 
         valores = (fecha,)
 
@@ -164,7 +165,13 @@ class ManejarReservaciones:
             resultados = cursor.fetchall()
 
             if resultados:
-                print(resultados)
+                print(f"\n{"-"*106}")
+                print(f"|{"Folio":^10}|{"Nombre de la sala":^25}|{"Nombre del cliente":^20}|{"Nombre del evento":^30}|{"Turno":^15}|")
+                print("="*106)
+                for folio, nombre_sala, nombre_cliente, nombre_evento, turno in resultados:
+                    print(f"|{folio:^10}|{nombre_sala:^25}|{nombre_cliente:^20}|{nombre_evento:^30}|{turno:^15}|")
+                print("-"*106)
+
                 return resultados
             else:
                 print("No hay reservaciones disponibles para esta fecha.")
@@ -200,7 +207,13 @@ class ManejarReservaciones:
             resultados = cursor.fetchall()
 
             if resultados:
-                print(resultados)
+                print(f"\n{"-"*112}")
+                print(f"|{"Folio":^10}|{"ID cliente":^15}|{"Fecha":^15}|{"Turno":^15}|{"ID sala":^10}|{"Nombre del evento":^40}|")
+                print("="*112)
+                for folio, id_cliente, fecha, turno, id_sala, nombre_evento in resultados:
+                    print(f"|{folio:^10}|{id_cliente:^15}|{fecha:^15}|{turno:^15}|{id_sala:^10}|{nombre_evento:^40}|")
+                print("-"*112)
+
                 folios_validos = [fecha[0] for fecha in resultados]
                 return folios_validos
             else:
@@ -226,8 +239,9 @@ class ManejarReservaciones:
             print("Nombre del evento actualizado exitosamente.")
         #TODO: ¿Y si el evento no existe?
 
-    def verificar_disponibilidad(fecha, id_sala, turno):
-        valores = (fecha, id_sala, turno)
+    def verificar_disponibilidad(self, fecha, id_sala, turno):
+        fecha_formateada = fecha.isoformat()
+        valores = (fecha_formateada, id_sala, turno)
 
         with sqlite3.connect("coworking.db") as conn:
             cursor = conn.cursor()
@@ -299,10 +313,6 @@ class ManejarClientes:
     def mostrar_clientes(self) -> None:
         """Muestra los clientes registrados en formato tabular."""
 
-        print("\nListado de clientes registrados:")
-        print(f"{'ID':<15} {'Nombre':<20} {'Apellidos':<20}")
-        print("-" * 55)
-
         with sqlite3.connect("coworking.db") as conn:
             c = conn.cursor()
             c.execute(
@@ -318,7 +328,12 @@ class ManejarClientes:
             resultados = c.fetchall()
 
             if resultados:
-                print(resultados)
+                print(f"\n{"-"*63}")
+                print(f"|{"ID":^10}|{"Nombre":^25}|{"Apellidos":^25}|")
+                print(f"\n{"="*63}")
+                for id_cliente, nombre, apellidos in resultados:
+                    print(f"|{id_cliente:^10}|{nombre:^25}|{apellidos:^25}|")
+                print("-"*63)
             else:
                 print("No hay clientes registrados.")
 
