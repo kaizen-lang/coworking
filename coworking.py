@@ -1,6 +1,7 @@
 """Script de coworking."""
 
 #TODO: Actualizar docstrings y type annotations a la versión actualizada.
+#TODO: Meter todo el SQL en bloques Try, manejar posibles excepciones
 
 import datetime as dt
 import json
@@ -9,6 +10,7 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side
 
 import sqlite3
+from sqlite3 import Error
 import os
 
 def inicializar_base_datos():
@@ -150,9 +152,11 @@ class ManejarReservaciones:
 
             cursor.execute("""
             SELECT
-                folio, id_cliente, fecha, turno, id_sala, nombre_evento
-            FROM reservaciones
-            WHERE fecha = ?
+                s.nombre, c.nombre, r.nombre_evento, r.turno
+            FROM reservaciones r
+            JOIN salas s ON s.id_sala = r.id_sala
+            JOIN clientes c ON c.id_cliente = r.id_cliente
+            WHERE r.fecha = ?
             """, valores)
 
             resultados = cursor.fetchall()
@@ -173,24 +177,30 @@ class ManejarReservaciones:
             list: Lista de folios válidos en el rango.
         """
 
-        print(f"\nEventos en el rango de fechas {fecha_inicio.strftime('%m-%d-%Y')} a {fecha_fin.strftime('%m-%d-%Y')}:")
-        print(f"{'Folio':<15} {'Nombre Evento':<30} {'Fecha':<15}")
-        print("-" * 60)
+        valores = (fecha_inicio, fecha_fin)
 
-        lista_eventos = []
+        with sqlite3.connect("coworking.db") as conn:
+            cursor = conn.cursor()
 
-        for folio, datos in self.lista.items():
-            if fecha_inicio <= datos["fecha"] <= fecha_fin:
-                lista_eventos.append((folio, datos["nombre_evento"], datos["fecha"]))
+            cursor.execute("""
+                SELECT
+                    id_cliente,
+                    fecha,
+                    turno,
+                    id_sala,
+                    nombre_evento
+                FROM reservaciones
+                WHERE fecha BETWEEN ? AND ?
+            """, valores)
 
-        lista_eventos.sort(key=lambda x: x[2])
+            resultados = cursor.fetchall()
 
-        for folio, evento, fecha in lista_eventos:
-            print(f"{folio:<15} {evento:<30} {fecha.strftime('%m-%d-%Y'):<15}")
+            if resultados:
+                print(resultados)
+            else:
+                print("No hay reservaciones disponibles para esta fecha.")
 
-        return [folio for folio, _, _ in lista_eventos]
-
-    def editar_nombre_evento(self, folio: str, nuevo_nombre: str) -> None:
+    def editar_nombre_evento(self, folio: int, nuevo_nombre: str) -> None:
         """Edita el nombre de un evento ya existente.
 
         Args:
@@ -198,18 +208,17 @@ class ManejarReservaciones:
             nuevo_nombre (str): Nuevo nombre que tendrá el evento.
         """
 
-        if folio in self.lista:
-            self.lista[folio]["nombre_evento"] = nuevo_nombre
-            with sqlite3.connect("coworking.db") as conn:
-                c = conn.cursor()
-                c.execute("""
-                    UPDATE reservaciones
-                    SET nombre_evento = ?
-                    WHERE folio = ?
-                """, (nuevo_nombre, int(folio)))
-            print(f"Nombre del evento actualizado exitosamente para el folio {folio}.")
-        else:
-            print("Folio no encontrado.")
+        valores = (nuevo_nombre, folio)
+
+        with sqlite3.connect("coworking.db") as conn:
+            c = conn.cursor()
+            c.execute("""
+                UPDATE reservaciones
+                SET nombre_evento = ?
+                WHERE folio = ?
+            """, valores)
+            print("Nombre del evento actualizado exitosamente.")
+        #TODO: ¿Y si el evento no existe?
 
 class ManejarSalas:
     """Clase para el manejo de salas.
