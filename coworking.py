@@ -428,6 +428,76 @@ class Coworking:
                 raise ValueError
             return entrada
 
+    def __exportar_json(self, reservaciones:dict, fecha:str):
+        with open(f"reservaciones_{fecha}.json", "w", encoding="utf-8") as archivo:
+            json.dump(reservaciones, archivo, indent=2, ensure_ascii=False)
+        print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha}.json'")
+
+
+    def __exportar_csv(self,reservaciones:dict, fecha:str):
+        with open(f"reservaciones_{fecha}.csv", "w", newline="", encoding="utf-8") as archivo:
+            manejar_csv = csv.writer(archivo)
+            manejar_csv.writerow(("Folio", "Nombre Sala", "Nombre Cliente", "Nombre Evento", "Turno", "Fecha"))
+
+            for folio, datos in reservaciones.items():
+                manejar_csv.writerow((folio, datos["nombre_sala"], datos["nombre_cliente"], datos["nombre_evento"], datos["turno"], datos["fecha"]))
+
+
+    def __exportar_excel(self, reservaciones:dict, fecha:str):
+        libro = openpyxl.Workbook()
+        hoja = libro.active
+        hoja.title = f"Reservaciones_{fecha}"
+
+        negrita = Font(bold=True)
+        centrado = Alignment(horizontal="center", vertical="center")
+        borde_grueso = Border(bottom=Side(border_style="thick"))
+
+        encabezados = ["Folio", "Nombre Sala", "Nombre Cliente", "Nombre Evento", "Turno", "Fecha"]
+
+        for columna, titulo in enumerate(encabezados, start=1):
+            celda = hoja.cell(row=1, column=columna, value=titulo)
+            celda.font = negrita
+            celda.alignment = centrado
+            celda.border = borde_grueso
+
+        for renglon, (folio, datos) in enumerate(reservaciones.items(), start=2):
+            hoja.cell(row=renglon, column=1, value=folio).alignment = centrado
+            hoja.cell(row=renglon, column=2, value=datos["nombre_sala"]).alignment = centrado
+            hoja.cell(row=renglon, column=3, value=datos["nombre_cliente"]).alignment = centrado
+            hoja.cell(row=renglon, column=4, value=datos["nombre_evento"]).alignment = centrado
+            hoja.cell(row=renglon, column=5, value=datos["turno"]).alignment = centrado
+            hoja.cell(row=renglon, column=6, value=datos["fecha"]).alignment = centrado
+
+        libro.save(f"reservaciones_{fecha}.xlsx")
+        print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha}.xlsx'")
+
+
+    def __exportar(self, lista_reservaciones:list, fecha:dt.date):
+        formato = input("Seleccione el formato de exportación: JSON, CSV o EXCEL: ").upper()
+
+        fecha_str = fecha.strftime('%m-%d-%Y')
+        reservaciones_fecha = {
+            folio[0]: {
+                "nombre_sala": folio[1],
+                "nombre_cliente": folio[2],
+                "nombre_evento": folio[3],
+                "turno": folio[4],
+                "fecha": fecha_str
+                }
+            for folio in lista_reservaciones
+        }
+
+        if formato == "JSON":
+            self.__exportar_json(reservaciones_fecha, fecha_str)
+
+        elif formato == "CSV":
+            self.__exportar_csv(reservaciones_fecha, fecha_str)
+
+        elif formato == "EXCEL":
+            self.__exportar_excel(reservaciones_fecha, fecha_str)
+        else:
+            print("Formato no válido. Opciones disponibles: JSON, CSV, EXCEL.")
+
     def __registrar_reservacion_sala(self) -> None:
         """Opción #1 del menú. Permite registrar la reservación de una sala.
 
@@ -627,67 +697,10 @@ class Coworking:
         registros_encontrados = self.reservaciones.mostrar_reservaciones_por_fecha(fecha)
 
         if registros_encontrados:
-            exportar = input("¿Desea exportar estas reservaciones? (SI/NO): ").upper()
+            exportar =  input("¿Desea exportar estas reservaciones? (SI/NO): ").upper()
             if exportar == "SI":
-                formato = input("Seleccione el formato de exportación: JSON, CSV o EXCEL: ").upper()
+                self.__exportar(registros_encontrados, fecha)
 
-                reservaciones_fecha = {
-                    folio[0]: {
-                        "nombre_sala": folio[1],
-                        "nombre_cliente": folio[2],
-                        "nombre_evento": folio[3],
-                        "turno": folio[4],
-                        "fecha": fecha.strftime('%m-%d-%Y')
-                        }
-                    for folio in registros_encontrados
-                }
-
-                fecha_str = fecha.strftime('%m-%d-%Y')
-
-                if formato == "JSON":
-                    with open(f"reservaciones_{fecha_str}.json", "w", encoding="utf-8") as archivo:
-                        json.dump(reservaciones_fecha, archivo, indent=2, ensure_ascii=False)
-                    print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha_str}.json'")
-
-                elif formato == "CSV":
-                  with open(f"reservaciones_{fecha_str}.csv", "w", newline="", encoding="utf-8") as archivo:
-                    manejar_csv = csv.writer(archivo)
-                    manejar_csv.writerow(("Folio", "Nombre Sala", "Nombre Cliente", "Nombre Evento", "Turno", "Fecha"))
-
-                    for folio, datos in reservaciones_fecha.items():
-                      manejar_csv.writerow((folio, datos["nombre_sala"], datos["nombre_cliente"], datos["nombre_evento"], datos["turno"], datos["fecha"]))
-
-                elif formato == "EXCEL":
-
-                  libro = openpyxl.Workbook()
-                  hoja = libro.active
-                  hoja.title = f"Reservaciones_{fecha_str}"
-
-                  negrita = Font(bold=True)
-                  centrado = Alignment(horizontal="center", vertical="center")
-                  borde_grueso = Border(bottom=Side(border_style="thick"))
-
-                  encabezados = ["Folio", "Nombre Sala", "Nombre Cliente", "Nombre Evento", "Turno", "Fecha"]
-
-                  for columna, titulo in enumerate(encabezados, start=1):
-                    celda = hoja.cell(row=1, column=columna, value=titulo)
-                    celda.font = negrita
-                    celda.alignment = centrado
-                    celda.border = borde_grueso
-
-                  for renglon, (folio, datos) in enumerate(reservaciones_fecha.items(), start=2):
-                    hoja.cell(row=renglon, column=1, value=folio).alignment = centrado
-                    hoja.cell(row=renglon, column=2, value=datos["nombre_sala"]).alignment = centrado
-                    hoja.cell(row=renglon, column=3, value=datos["nombre_cliente"]).alignment = centrado
-                    hoja.cell(row=renglon, column=4, value=datos["nombre_evento"]).alignment = centrado
-                    hoja.cell(row=renglon, column=5, value=datos["turno"]).alignment = centrado
-                    hoja.cell(row=renglon, column=6, value=datos["fecha"]).alignment = centrado
-
-                  libro.save(f"reservaciones_{fecha_str}.xlsx")
-                  print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha_str}.xlsx'")
-
-                else:
-                    print("Formato no válido. Opciones disponibles: JSON, CSV, EXCEL.")
 
     def __registrar_nuevo_cliente(self) -> None:
         """Opción #4 del menú. Permite registrar a un nuevo cliente.
