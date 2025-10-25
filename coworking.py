@@ -264,18 +264,7 @@ class ManejarClientes:
     """
 
     def __init__(self):
-        self.lista = self._load_from_db()
-
-    def _load_from_db(self) -> dict:
-        """Carga los clientes desde la base de datos."""
-        lista = {}
-        with sqlite3.connect("coworking.db") as conn:
-            c = conn.cursor()
-            c.execute("SELECT id_cliente, nombre, apellidos FROM clientes")
-            for row in c.fetchall():
-                id_c, nom, apell = row
-                lista[str(id_c)] = {"Nombre": nom, "Apellidos": apell}
-        return lista
+        pass
 
     def registrar_cliente(self, nombre: str, apellidos: str) -> bool:
         """Registra un cliente dentro de la base de datos y en la lista local.
@@ -291,26 +280,35 @@ class ManejarClientes:
         with sqlite3.connect("coworking.db") as conn:
             c = conn.cursor()
             c.execute("INSERT INTO clientes (nombre, apellidos) VALUES (?, ?)", (nombre, apellidos))
-            id_c = c.lastrowid
 
-        self.lista[str(id_c)] = {"Nombre": nombre, "Apellidos": apellidos}
-
-        print(f"Cliente registrado satisfactoriamente con el ID: {id_c}")
-
-        return True
+            print("Cliente registrado satisfactoriamente.")
 
     def mostrar_clientes(self) -> None:
         """Muestra los clientes registrados en formato tabular."""
-
-        ordenado = dict(sorted(self.lista.items(), key=lambda item: (item[1]["Apellidos"], item[1]["Nombre"])))
 
         print("\nListado de clientes registrados:")
         print(f"{'ID':<15} {'Nombre':<20} {'Apellidos':<20}")
         print("-" * 55)
 
-        for id_cliente, datos in ordenado.items():
-            nombre, apellidos = datos.values()
-            print(f"{id_cliente:<15} {nombre:<20} {apellidos:<20}")
+        with sqlite3.connect("coworking.db") as conn:
+            c = conn.cursor()
+            c.execute(
+            """
+                SELECT
+                    id_cliente,
+                    nombre,
+                    apellidos
+                FROM clientes
+                ORDER BY apellidos
+            """
+            )
+            resultados = c.fetchall()
+
+            if resultados:
+                print(resultados)
+            else:
+                print("No hay clientes registrados.")
+
 
 class Coworking:
     """Clase principal del coworking."""
