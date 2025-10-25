@@ -40,8 +40,11 @@ class ManejarReservaciones:
             "id_sala": id_sala,
             "nombre_evento": nombre_evento
         }
+<<<<<<< Updated upstream
 
         print(f"Evento registrado de manera exitosa con el folio: {folio}")
+=======
+>>>>>>> Stashed changes
 
     def mostrar_salas_disponibles(self, lista_salas: dict, fecha):
         #Mostrar las salas con turnos disponibles en formato tabular
@@ -119,7 +122,17 @@ class ManejarReservaciones:
     def editar_nombre_evento(self, folio: str, nuevo_nombre: str):
         if folio in self.lista:
             self.lista[folio]["nombre_evento"] = nuevo_nombre
+<<<<<<< Updated upstream
             print(f"Nombre del evento actualizado exitosamente para el folio {folio}.")
+=======
+            with sqlite3.connect("coworking.db") as conn:
+                c = conn.cursor()
+                c.execute("""
+                    UPDATE reservaciones
+                    SET nombre_evento = ?
+                    WHERE folio = ?
+                """, (nuevo_nombre, int(folio)))
+>>>>>>> Stashed changes
         else:
             print("Folio no encontrado.")
 
@@ -150,7 +163,16 @@ class ManejarSalas:
 
         self.lista[id_sala] = {"Nombre": nombre.strip(), "Cupo": cupo}
 
+<<<<<<< Updated upstream
         print(f"Sala registrada exitosamente con el ID: {id_sala}")
+=======
+        with sqlite3.connect("coworking.db") as conn:
+            c = conn.cursor()
+            c.execute("INSERT INTO salas (nombre, cupo) VALUES (?, ?)", (nombre, cupo))
+            id_s = c.lastrowid
+
+        self.lista[str(id_s)] = {"Nombre": nombre.strip(), "Cupo": cupo}
+>>>>>>> Stashed changes
 
 class ManejarClientes:
 
@@ -179,7 +201,16 @@ class ManejarClientes:
 
         self.lista[id_cliente] = {"Nombre": nombre, "Apellidos": apellidos}
 
+<<<<<<< Updated upstream
         print(f"Cliente registrado satisfactoriamente con el ID: {id_cliente}")
+=======
+        with sqlite3.connect("coworking.db") as conn:
+            c = conn.cursor()
+            c.execute("INSERT INTO clientes (nombre, apellidos) VALUES (?, ?)", (nombre, apellidos))
+            id_c = c.lastrowid
+
+        self.lista[str(id_c)] = {"Nombre": nombre, "Apellidos": apellidos}
+>>>>>>> Stashed changes
 
         return True
 
