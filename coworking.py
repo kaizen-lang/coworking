@@ -1,7 +1,7 @@
 """Script de coworking."""
 
-#TODO: Actualizar docstrings y type annotations a la versión actualizada.
 #TODO: Manejar validaciones de si existen en X lista
+#TODO: Validaciones en todo el programa, SQL, etc.
 
 import datetime as dt
 import json
