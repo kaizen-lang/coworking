@@ -2,8 +2,6 @@
 
 #TODO: Actualizar docstrings y type annotations a la versión actualizada.
 #TODO: Manejar validaciones de si existen en X lista
-#TODO: Pasar de isoformat a mm-dd-yyyy
-#TODO: Checar el tema de las fechas
 
 import datetime as dt
 import json
@@ -77,11 +75,12 @@ class ManejarReservaciones:
         fecha_formateada = fecha.isoformat()
         valores = (id_cliente, fecha_formateada, turno, id_sala, nombre_evento)
         try:
-            with sqlite3.connect("coworking.db") as conn:
-                c = conn.cursor()
-                c.execute("""
+            with sqlite3.connect("coworking.db", pragma="foreign_keys = ON") as conn:
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA foreign_keys = ON;")
+                cursor.execute("""
                     INSERT INTO reservaciones (id_cliente, fecha, turno, id_sala, nombre_evento)
-                    VALUES (?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?);
                 """, valores)
         except Error as e:
             print(e)
@@ -130,7 +129,7 @@ class ManejarReservaciones:
                         d.cupo,
                         group_concat(d.turno, ', ')
                     FROM disponibles d
-                    GROUP BY d.id_sala
+                    GROUP BY d.id_sala;
                 """, valores)
 
                 resultados = cursor.fetchall()
@@ -161,18 +160,24 @@ class ManejarReservaciones:
             bool: True si se encontraron reservaciones, False si no.
         """
 
-        valores = (fecha,)
+        fecha_formateada = fecha.isoformat()
+        valores = (fecha_formateada,)
+
         try:
             with sqlite3.connect("coworking.db") as conn:
                 cursor = conn.cursor()
 
                 cursor.execute("""
                 SELECT
-                    r.folio, s.nombre, c.nombre, r.nombre_evento, r.turno
+                    r.folio,
+                    s.nombre,
+                    c.nombre,
+                    r.nombre_evento,
+                    r.turno
                 FROM reservaciones r
                 JOIN salas s ON s.id_sala = r.id_sala
                 JOIN clientes c ON c.id_cliente = r.id_cliente
-                WHERE r.fecha = ?
+                WHERE r.fecha = ?;
                 """, valores)
 
                 resultados = cursor.fetchall()
@@ -219,7 +224,7 @@ class ManejarReservaciones:
                         id_sala,
                         nombre_evento
                     FROM reservaciones
-                    WHERE fecha BETWEEN ? AND ?
+                    WHERE fecha BETWEEN ? AND ?;
                 """, valores)
 
                 resultados = cursor.fetchall()
@@ -229,6 +234,9 @@ class ManejarReservaciones:
                     print(f"|{"Folio":^10}|{"ID cliente":^15}|{"Fecha":^15}|{"Turno":^15}|{"ID sala":^10}|{"Nombre del evento":^40}|")
                     print("="*112)
                     for folio, id_cliente, fecha, turno, id_sala, nombre_evento in resultados:
+                        fecha = dt.date.fromisoformat(fecha)
+                        fecha = fecha.strftime('%m-%d-%Y')
+
                         print(f"|{folio:^10}|{id_cliente:^15}|{fecha:^15}|{turno:^15}|{id_sala:^10}|{nombre_evento:^40}|")
                     print("-"*112)
 
@@ -253,14 +261,13 @@ class ManejarReservaciones:
         valores = (nuevo_nombre, folio)
         try:
             with sqlite3.connect("coworking.db") as conn:
-                c = conn.cursor()
-                c.execute("""
+                cursor = conn.cursor()
+                cursor.execute("""
                     UPDATE reservaciones
                     SET nombre_evento = ?
-                    WHERE folio = ?
+                    WHERE folio = ?;
                 """, valores)
                 print("Nombre del evento actualizado exitosamente.")
-            #TODO: ¿Y si el evento no existe?
         except Error as e:
             print(e)
         except Exception:
@@ -283,7 +290,7 @@ class ManejarReservaciones:
                     FROM reservaciones
                     WHERE fecha = ?
                     AND id_sala = ?
-                    AND turno = ?
+                    AND turno = ?;
                 """, valores)
 
                 resultados = cursor.fetchall()
@@ -310,10 +317,11 @@ class ManejarSalas:
             nombre (str): Nombre de la sala.
             cupo (int): Cupo de la sala.
         """
+        valores = (nombre, cupo)
         try:
             with sqlite3.connect("coworking.db") as conn:
-                c = conn.cursor()
-                c.execute("INSERT INTO salas (nombre, cupo) VALUES (?, ?)", (nombre, cupo))
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO salas (nombre, cupo) VALUES (?, ?);", valores)
         except Error as e:
             print(e)
         except Exception:
@@ -340,8 +348,8 @@ class ManejarClientes:
         """
         try:
             with sqlite3.connect("coworking.db") as conn:
-                c = conn.cursor()
-                c.execute("INSERT INTO clientes (nombre, apellidos) VALUES (?, ?)", (nombre, apellidos))
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO clientes (nombre, apellidos) VALUES (?, ?);", (nombre, apellidos))
 
                 print("Cliente registrado satisfactoriamente.")
         except Error as e:
@@ -353,18 +361,18 @@ class ManejarClientes:
         """Muestra los clientes registrados en formato tabular."""
         try:
             with sqlite3.connect("coworking.db") as conn:
-                c = conn.cursor()
-                c.execute(
+                cursor = conn.cursor()
+                cursor.execute(
                 """
                     SELECT
                         id_cliente,
                         nombre,
                         apellidos
                     FROM clientes
-                    ORDER BY apellidos
+                    ORDER BY apellidos;
                 """
                 )
-                resultados = c.fetchall()
+                resultados = cursor.fetchall()
 
                 if resultados:
                     print(f"\n{"-"*63}")
@@ -616,47 +624,40 @@ class Coworking:
                     return
                 continue
 
-        encontrados = self.reservaciones.mostrar_reservaciones_por_fecha(fecha)
+        registros_encontrados = self.reservaciones.mostrar_reservaciones_por_fecha(fecha)
 
-        if encontrados:
+        if registros_encontrados:
             exportar = input("¿Desea exportar estas reservaciones? (SI/NO): ").upper()
             if exportar == "SI":
                 formato = input("Seleccione el formato de exportación: JSON, CSV o EXCEL: ").upper()
 
                 reservaciones_fecha = {
-                    "folio": encontrados[0],
-                    "nombre_sala": encontrados[1],
-                    "nombre_cliente": encontrados[2],
-                    "nombre_evento": encontrados[3],
-                    "turno": encontrados[4],
-                    "fecha": fecha
+                    folio[0]: {
+                        "nombre_sala": folio[1],
+                        "nombre_cliente": folio[2],
+                        "nombre_evento": folio[3],
+                        "turno": folio[4],
+                        "fecha": fecha.strftime('%m-%d-%Y')
+                        }
+                    for folio in registros_encontrados
                 }
 
                 fecha_str = fecha.strftime('%m-%d-%Y')
 
                 if formato == "JSON":
-                    export_data = {
-                        folio: {**datos, "fecha": datos["fecha"].strftime('%m-%d-%Y')}
-                        for folio, datos in reservaciones_fecha.items()
-                    }
                     with open(f"reservaciones_{fecha_str}.json", "w", encoding="utf-8") as archivo:
-                        json.dump(export_data, archivo, indent=2, ensure_ascii=False)
+                        json.dump(reservaciones_fecha, archivo, indent=2, ensure_ascii=False)
                     print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha_str}.json'")
 
                 elif formato == "CSV":
                   with open(f"reservaciones_{fecha_str}.csv", "w", newline="", encoding="utf-8") as archivo:
                     manejar_csv = csv.writer(archivo)
-                    manejar_csv.writerow(("Folio", "ID Cliente", "Fecha", "Turno", "ID Sala", "Nombre Evento"))
+                    manejar_csv.writerow(("Folio", "Nombre Sala", "Nombre Cliente", "Nombre Evento", "Turno", "Fecha"))
 
                     for folio, datos in reservaciones_fecha.items():
-                      manejar_csv.writerow((folio, datos['id_cliente'], datos['fecha'].strftime('%m-%d-%Y'), datos['turno'], datos['id_sala'], datos['nombre_evento']))
+                      manejar_csv.writerow((folio, datos["nombre_sala"], datos["nombre_cliente"], datos["nombre_evento"], datos["turno"], datos["fecha"]))
 
                 elif formato == "EXCEL":
-                  reservaciones_filtradas = {
-                    folio: datos
-                    for folio, datos in self.reservaciones.lista.items()
-                    if datos["fecha"] == fecha
-                  }
 
                   libro = openpyxl.Workbook()
                   hoja = libro.active
@@ -666,20 +667,21 @@ class Coworking:
                   centrado = Alignment(horizontal="center", vertical="center")
                   borde_grueso = Border(bottom=Side(border_style="thick"))
 
-                  encabezados = ["Folio", "ID Cliente", "Fecha", "Turno", "ID Sala", "Nombre Evento"]
+                  encabezados = ["Folio", "Nombre Sala", "Nombre Cliente", "Nombre Evento", "Turno", "Fecha"]
+
                   for columna, titulo in enumerate(encabezados, start=1):
                     celda = hoja.cell(row=1, column=columna, value=titulo)
                     celda.font = negrita
                     celda.alignment = centrado
                     celda.border = borde_grueso
 
-                  for renglon, (folio, datos) in enumerate(reservaciones_filtradas.items(), start=2):
+                  for renglon, (folio, datos) in enumerate(reservaciones_fecha.items(), start=2):
                     hoja.cell(row=renglon, column=1, value=folio).alignment = centrado
-                    hoja.cell(row=renglon, column=2, value=datos["id_cliente"]).alignment = centrado
-                    hoja.cell(row=renglon, column=3, value=datos["fecha"].strftime('%m-%d-%Y')).alignment = centrado
-                    hoja.cell(row=renglon, column=4, value=datos["turno"]).alignment = centrado
-                    hoja.cell(row=renglon, column=5, value=datos["id_sala"]).alignment = centrado
-                    hoja.cell(row=renglon, column=6, value=datos["nombre_evento"]).alignment = centrado
+                    hoja.cell(row=renglon, column=2, value=datos["nombre_sala"]).alignment = centrado
+                    hoja.cell(row=renglon, column=3, value=datos["nombre_cliente"]).alignment = centrado
+                    hoja.cell(row=renglon, column=4, value=datos["nombre_evento"]).alignment = centrado
+                    hoja.cell(row=renglon, column=5, value=datos["turno"]).alignment = centrado
+                    hoja.cell(row=renglon, column=6, value=datos["fecha"]).alignment = centrado
 
                   libro.save(f"reservaciones_{fecha_str}.xlsx")
                   print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha_str}.xlsx'")
