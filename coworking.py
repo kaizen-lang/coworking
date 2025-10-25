@@ -3,6 +3,7 @@
 #TODO: Actualizar docstrings y type annotations a la versión actualizada.
 #TODO: Meter todo el SQL en bloques Try, manejar posibles excepciones
 #TODO: Manejar validaciones de si existen en X lista
+#TODO: Pasar de isoformat a mm-dd-yyyy
 
 import datetime as dt
 import json
@@ -153,7 +154,7 @@ class ManejarReservaciones:
 
             cursor.execute("""
             SELECT
-                s.nombre, c.nombre, r.nombre_evento, r.turno
+                r.folio, s.nombre, c.nombre, r.nombre_evento, r.turno
             FROM reservaciones r
             JOIN salas s ON s.id_sala = r.id_sala
             JOIN clientes c ON c.id_cliente = r.id_cliente
@@ -164,6 +165,7 @@ class ManejarReservaciones:
 
             if resultados:
                 print(resultados)
+                return resultados
             else:
                 print("No hay reservaciones disponibles para esta fecha.")
 
@@ -556,7 +558,7 @@ class Coworking:
                     return
                 continue
 
-        encontrados = self.reservaciones.mostrar_reservaciones_por_fecha(fecha, self.salas.lista, self.clientes.lista)
+        encontrados = self.reservaciones.mostrar_reservaciones_por_fecha(fecha)
 
         if encontrados:
             exportar = input("¿Desea exportar estas reservaciones? (SI/NO): ").upper()
@@ -564,9 +566,12 @@ class Coworking:
                 formato = input("Seleccione el formato de exportación: JSON, CSV o EXCEL: ").upper()
 
                 reservaciones_fecha = {
-                    folio: datos
-                    for folio, datos in self.reservaciones.lista.items()
-                    if datos["fecha"] == fecha
+                    "folio": encontrados[0],
+                    "nombre_sala": encontrados[1],
+                    "nombre_cliente": encontrados[2],
+                    "nombre_evento": encontrados[3],
+                    "turno": encontrados[4],
+                    "fecha": fecha
                 }
 
                 fecha_str = fecha.strftime('%m-%d-%Y')
