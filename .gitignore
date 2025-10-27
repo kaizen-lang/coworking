@@ -3,3 +3,4 @@ pruebas.py
 *.json
 *.csv
 *.xlsx
+*.db
