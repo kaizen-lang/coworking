@@ -32,45 +32,48 @@ class Coworking:
         def __init__(self):
             pass
 
-        def registrar_reservacion(self, id_cliente: int, fecha: dt.date, turno: str, id_sala: int, nombre_evento: int) -> None:
-            """Registra una reservación nueva en la base de datos y en la lista local.
+        def registrar_reservacion(self, id_cliente: int, fecha: dt.date, turno: str, id_sala: int, nombre_evento: str) -> None:
+            while True:
+                try:
+                    fecha_formateada = fecha.isoformat()
+                    valores = (id_cliente, fecha_formateada, turno, id_sala, nombre_evento)
 
-            Args:
-                id_cliente (int): ID del cliente que hace la reservación.
-                fecha (dt.date): Fecha de la reservación.
-                turno (str): Turno de la reservación.
-                id_sala (int): ID de la sala a reservar.
-                nombre_evento (int): Nombre del evento a realizar.
-            """
+                    with sqlite3.connect("coworking.db") as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("PRAGMA foreign_keys = ON;")
 
-            fecha_formateada = fecha.isoformat()
-            valores = (id_cliente, fecha_formateada, turno, id_sala, nombre_evento)
-            try:
-                with sqlite3.connect("coworking.db") as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("PRAGMA foreign_keys = ON;")
-                    # Validación básica de existencia (integridad referencial)
-                    cursor.execute("SELECT 1 FROM clientes WHERE id_cliente = ?", (id_cliente,))
-                    if not cursor.fetchone():
-                        raise ValueError("Cliente no existe.")
-                    cursor.execute("SELECT 1 FROM salas WHERE id_sala = ?", (id_sala,))
-                    if not cursor.fetchone():
-                        raise ValueError("Sala no existe.")
-                    # Verificar disponibilidad
-                    cursor.execute("""
-                        SELECT 1 FROM reservaciones
-                        WHERE fecha = ? AND id_sala = ? AND turno = ?
-                    """, (fecha_formateada, id_sala, turno))
-                    if cursor.fetchone():
-                        raise ValueError("No disponible para ese turno.")
-                    cursor.execute("""
-                        INSERT INTO reservaciones (id_cliente, fecha, turno, id_sala, nombre_evento)
-                        VALUES (?, ?, ?, ?, ?);
-                    """, valores)
-            except Error as e:
-                print(e)
+                        cursor.execute("SELECT 1 FROM clientes WHERE id_cliente = ?", (id_cliente,))
+                        if not cursor.fetchone():
+                            raise ValueError("Cliente no existe.")
 
-            print("Evento registrado de manera exitosa.")
+                        cursor.execute("SELECT 1 FROM salas WHERE id_sala = ?", (id_sala,))
+                        if not cursor.fetchone():
+                            raise ValueError("Sala no existe.")
+
+                        cursor.execute("""
+                            SELECT 1 FROM reservaciones
+                            WHERE fecha = ? AND id_sala = ? AND turno = ?
+                        """, (fecha_formateada, id_sala, turno))
+                        if cursor.fetchone():
+                            raise ValueError("No disponible para ese turno.")
+
+                        cursor.execute("""
+                            INSERT INTO reservaciones (id_cliente, fecha, turno, id_sala, nombre_evento)
+                            VALUES (?, ?, ?, ?, ?);
+                        """, valores)
+
+                    print("Evento registrado de manera exitosa.")
+                    break
+
+                except ValueError as e:
+                    print(e)
+                    break
+                except Error as e:
+                    print(e)
+                    break
+                except Exception:
+                    print(f"Ocurrió un error: {sys.exc_info()[0]}")
+                    break
 
         def mostrar_salas_disponibles(self, fecha:dt.date)->bool:
             """Muestra las salas disponibles en una fecha específica.
@@ -296,24 +299,23 @@ class Coworking:
             pass
 
         def registrar_sala(self, nombre: str, cupo: int) -> None:
-            """Registra una sala dentro de la base de datos y en la lista local.
+            while True:
+                try:
+                    if not nombre or cupo <= 0:
+                        raise ValueError("Datos inválidos. Nombre vacío o cupo no positivo.")
 
-            Args:
-                nombre (str): Nombre de la sala.
-                cupo (int): Cupo de la sala.
-            """
-            valores = (nombre, cupo)
-            try:
-                with sqlite3.connect("coworking.db") as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("INSERT INTO salas (nombre, cupo) VALUES (?, ?);", valores)
-            except Error as e:
-                print(e)
-            except Exception:
-                print(f"Ocurrió un error: {sys.exc_info()[0]}")
-
-            return True
-
+                    valores = (nombre, cupo)
+                    with sqlite3.connect("coworking.db") as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("INSERT INTO salas (nombre, cupo) VALUES (?, ?);", valores)
+                    print("Sala registrada exitosamente.")
+                    break
+                except Error as e:
+                    print(e)
+                    break
+                except Exception:
+                    print(f"Ocurrió un error: {sys.exc_info()[0]}")
+                    break
 
     class ManejarClientes:
         """Clase para el manejo de clientes."""
@@ -321,26 +323,26 @@ class Coworking:
         def __init__(self):
             pass
 
-        def registrar_cliente(self, nombre: str, apellidos: str) -> bool:
-            """Registra un cliente dentro de la base de datos y en la lista local.
+        def registrar_cliente(self, nombre: str, apellidos: str) -> None:
+            while True:
+                try:
+                    if not nombre or not apellidos:
+                        raise ValueError("Nombre o apellidos no pueden estar vacíos.")
 
-            Args:
-                nombre (str): Nombre del cliente.
-                apellidos (str): Apellidos del cliente.
-
-            Returns:
-                bool: True si el cliente se registró de manera exitosa.
-            """
-            try:
-                with sqlite3.connect("coworking.db") as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("INSERT INTO clientes (nombre, apellidos) VALUES (?, ?);", (nombre, apellidos))
-
+                    with sqlite3.connect("coworking.db") as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("INSERT INTO clientes (nombre, apellidos) VALUES (?, ?);", (nombre, apellidos))
                     print("Cliente registrado satisfactoriamente.")
-            except Error as e:
-                print(e)
-            except Exception:
-                print(f"Ocurrió un error: {sys.exc_info()[0]}")
+                    break
+                except ValueError as e:
+                    print(e)
+                    break
+                except Error as e:
+                    print(e)
+                    break
+                except Exception:
+                    print(f"Ocurrió un error: {sys.exc_info()[0]}")
+                    break
 
         def mostrar_clientes(self) -> None:
             """Muestra los clientes registrados en formato tabular."""
@@ -426,24 +428,16 @@ class Coworking:
         return True if confirmar_salida.upper() == "S" else False
 
     def __pedir_string(self, mensaje: str) -> str:
-        """Pide una cadena no vacía al usuario y la devuelve en caso de que sea válida.
-
-        Args:
-            mensaje (str): Mensaje que se mostrará al usario para la entrada.
-
-        Raises:
-            ValueError: El usuario mandó un valor vacío.
-
-        Returns:
-            str: Entrada ya validada.
-        """
-
         while True:
-            entrada = input(mensaje).strip()
-            if not entrada:
-                print("El campo no puede estar vacío.")
-                raise ValueError
-            return entrada
+            try:
+                entrada = input(mensaje).strip()
+                if not entrada:
+                    print("El campo no puede estar vacío.")
+                    raise ValueError
+                return entrada
+            except ValueError:
+                print("Entrada inválida. Intente de nuevo.")
+                continue
 
     def __exportar_json(self, reservaciones:dict, fecha:str):
         with open(f"reservaciones_{fecha}.json", "w", encoding="utf-8") as archivo:
