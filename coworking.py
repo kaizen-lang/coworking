@@ -1,8 +1,5 @@
 """Script de coworking."""
 
-#TODO: Manejar validaciones de si existen en X lista
-#TODO: Validaciones en todo el programa, SQL, etc.
-
 import datetime as dt
 import json
 import csv
@@ -299,23 +296,40 @@ class Coworking:
             pass
 
         def registrar_sala(self, nombre: str, cupo: int) -> None:
-            while True:
-                try:
-                    if not nombre or cupo <= 0:
-                        raise ValueError("Datos inválidos. Nombre vacío o cupo no positivo.")
+          while True:
+            try:
+                # Validación 1: nombre no vacío y cupo positivo
+                if not nombre or cupo <= 0:
+                    raise ValueError("Datos inválidos. Nombre vacío o cupo no positivo.")
 
-                    valores = (nombre, cupo)
-                    with sqlite3.connect("coworking.db") as conn:
-                        cursor = conn.cursor()
-                        cursor.execute("INSERT INTO salas (nombre, cupo) VALUES (?, ?);", valores)
-                    print("Sala registrada exitosamente.")
-                    break
-                except Error as e:
-                    print(e)
-                    break
-                except Exception:
-                    print(f"Ocurrió un error: {sys.exc_info()[0]}")
-                    break
+                with sqlite3.connect("coworking.db") as conn:
+                    cursor = conn.cursor()
+
+                    # Validación 2: evitar duplicar salas con el mismo nombre
+                    cursor.execute("""
+                        SELECT 1 FROM salas
+                        WHERE nombre = ?;
+                    """, (nombre,))
+                    if cursor.fetchone():
+                        raise ValueError("Ya existe una sala con ese nombre.")
+
+                    cursor.execute("""
+                        INSERT INTO salas (nombre, cupo)
+                        VALUES (?, ?);
+                    """, (nombre, cupo))
+
+                print("Sala registrada exitosamente.")
+                break
+
+            except ValueError as e:
+                print(e)
+                break
+            except Error as e:
+                print(e)
+                break
+            except Exception:
+                print(f"Ocurrió un error: {sys.exc_info()[0]}")
+                break
 
     class ManejarClientes:
         """Clase para el manejo de clientes."""
@@ -324,25 +338,40 @@ class Coworking:
             pass
 
         def registrar_cliente(self, nombre: str, apellidos: str) -> None:
-            while True:
-                try:
-                    if not nombre or not apellidos:
-                        raise ValueError("Nombre o apellidos no pueden estar vacíos.")
+          while True:
+            try:
+                # Validación 1: que los campos no estén vacíos
+                if not nombre or not apellidos:
+                    raise ValueError("Nombre o apellidos no pueden estar vacíos.")
 
-                    with sqlite3.connect("coworking.db") as conn:
-                        cursor = conn.cursor()
-                        cursor.execute("INSERT INTO clientes (nombre, apellidos) VALUES (?, ?);", (nombre, apellidos))
-                    print("Cliente registrado satisfactoriamente.")
-                    break
-                except ValueError as e:
-                    print(e)
-                    break
-                except Error as e:
-                    print(e)
-                    break
-                except Exception:
-                    print(f"Ocurrió un error: {sys.exc_info()[0]}")
-                    break
+                with sqlite3.connect("coworking.db") as conn:
+                    cursor = conn.cursor()
+
+                    #  Validación 2: que no exista ya un cliente con el mismo nombre y apellidos
+                    cursor.execute("""
+                        SELECT 1 FROM clientes
+                        WHERE nombre = ? AND apellidos = ?;
+                    """, (nombre, apellidos))
+                    if cursor.fetchone():
+                        raise ValueError("El cliente ya existe en la base de datos.")
+
+                    cursor.execute("""
+                        INSERT INTO clientes (nombre, apellidos)
+                        VALUES (?, ?);
+                    """, (nombre, apellidos))
+
+                print("Cliente registrado satisfactoriamente.")
+                break
+
+            except ValueError as e:
+                print(e)
+                break
+            except Error as e:
+                print(e)
+                break
+            except Exception:
+                print(f"Ocurrió un error: {sys.exc_info()[0]}")
+                break
 
         def mostrar_clientes(self) -> None:
             """Muestra los clientes registrados en formato tabular."""
