@@ -52,7 +52,7 @@ class Coworking:
                 except Exception:
                     print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
-        def mostrar_salas_disponibles(self, fecha:dt.date)->None:
+        def mostrar_salas_disponibles(self, fecha:dt.date, datos:list = [])->None:
             """Muestra las salas disponibles en una fecha específica.
 
             Args:
@@ -60,7 +60,10 @@ class Coworking:
                 fecha (dt.date): Fecha a consultar.
             """
             try:
-                resultados = self.obtener_salas_disponibles(fecha)
+                if datos:
+                    resultados = datos
+                else:
+                    resultados = self.obtener_salas_disponibles(fecha)
 
                 if resultados:
                     print(f"\n{"-"*75}")
@@ -121,7 +124,7 @@ class Coworking:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
 
-        def mostrar_reservaciones_por_fecha(self, fecha: dt.date) -> None:
+        def mostrar_reservaciones_por_fecha(self, fecha: dt.date, datos: list = []) -> None:
             """Muestra las reservaciones por fecha en formato tabular.
 
             Args:
@@ -129,7 +132,10 @@ class Coworking:
             """
 
             try:
-                resultados = self.obtener_reservaciones_por_fecha(fecha)
+                if datos:
+                    resultados = datos
+                else:
+                    resultados = self.obtener_reservaciones_por_fecha(fecha)
 
                 if resultados:
                     print(f"\n{"-"*106}")
@@ -176,7 +182,7 @@ class Coworking:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
 
-        def mostrar_reservaciones_en_rango(self, fecha_inicio: dt.date, fecha_fin: dt.date) -> list:
+        def mostrar_reservaciones_en_rango(self, fecha_inicio: dt.date, fecha_fin: dt.date, datos: list = []) -> list:
             """Muestra las reservaciones como formato tabular dentro de un rango de fechas definido.
 
             Args:
@@ -187,7 +193,10 @@ class Coworking:
                 list: Lista de folios válidos en el rango.
             """
             try:
-                resultados = self.obtener_reservaciones_en_rango(fecha_inicio, fecha_fin)
+                if datos:
+                    resultados = datos
+                else:
+                    resultados = self.obtener_reservaciones_en_rango(fecha_inicio, fecha_fin)
 
                 if resultados:
                     print(f"\n{"-"*112}")
@@ -335,10 +344,13 @@ class Coworking:
             except Exception:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
-        def mostrar_clientes(self) -> None:
+        def mostrar_clientes(self, datos: list = []) -> None:
             """Muestra los clientes registrados en formato tabular."""
             try:
-                resultados = self.obtener_clientes()
+                if datos:
+                    resultados = datos
+                else:
+                    resultados = self.obtener_clientes()
 
                 if resultados:
                     print(f"\n{"-"*63}")
@@ -432,15 +444,13 @@ class Coworking:
 
     def __pedir_string(self, mensaje: str) -> str:
         while True:
-            try:
-                entrada = input(mensaje).strip()
-                if not entrada:
-                    print("El campo no puede estar vacío.")
-                    raise ValueError
-                return entrada
-            except ValueError:
-                print("Entrada inválida. Intente de nuevo.")
-                continue
+            entrada = input(mensaje).strip()
+
+            if not entrada:
+                print("El campo no puede estar vacío.")
+                raise ValueError
+
+            return entrada
 
     def __exportar_json(self, reservaciones:dict, fecha:str):
         with open(f"reservaciones_{fecha}.json", "w", encoding="utf-8") as archivo:
@@ -525,7 +535,7 @@ class Coworking:
         ids_validos = [cliente[0] for cliente in lista_clientes]
 
         while True:
-            self.clientes.mostrar_clientes()
+            self.clientes.mostrar_clientes(lista_clientes)
 
             try:
                 id_cliente = int(self.__pedir_string("Escriba su ID de cliente: "))
@@ -577,7 +587,7 @@ class Coworking:
         ids_sala_validos = [sala[0] for sala in lista_salas]
 
         while True:
-            self.reservaciones.mostrar_salas_disponibles(fecha)
+            self.reservaciones.mostrar_salas_disponibles(fecha, lista_salas)
             try:
                 id_sala = int(self.__pedir_string("Escriba el ID de la sala a escoger: "))
                 if id_sala not in ids_sala_validos:
@@ -645,9 +655,6 @@ class Coworking:
                 if fecha_inicio > fecha_fin:
                     print("La fecha de inicio no puede ser posterior a la de fin.")
                     continue
-
-                self.reservaciones.mostrar_reservaciones_en_rango(fecha_inicio, fecha_fin)
-
                 break
             except ValueError:
                 print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
@@ -662,6 +669,7 @@ class Coworking:
 
         while True:
             try:
+                self.reservaciones.mostrar_reservaciones_en_rango(fecha_inicio, fecha_fin, reservaciones)
                 folio = int(self.__pedir_string("Escriba el folio del evento a modificar: "))
 
                 if folio not in folios_validos:
@@ -716,7 +724,7 @@ class Coworking:
         registros_encontrados = self.reservaciones.obtener_reservaciones_por_fecha(fecha)
 
         if registros_encontrados:
-            self.reservaciones.mostrar_reservaciones_por_fecha(fecha)
+            self.reservaciones.mostrar_reservaciones_por_fecha(fecha, registros_encontrados)
             exportar =  input("¿Desea exportar estas reservaciones? (SI/NO): ").upper()
             if exportar == "SI":
                 self.__exportar(registros_encontrados, fecha)
