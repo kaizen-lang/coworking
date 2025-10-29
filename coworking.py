@@ -29,10 +29,23 @@ class Coworking:
         def __init__(self):
             pass
 
+        def __convertir_turno_a_numero(self, turno: str) -> int:
+            resultado = 0
+
+            match turno:
+                case "Matutino":
+                    resultado = 1
+                case "Vespertino":
+                    resultado = 2
+                case "Nocturno":
+                    resultado = 3
+
+            return resultado
+
         def registrar_reservacion(self, id_cliente: int, fecha: dt.date, turno: str, id_sala: int, nombre_evento: str) -> None:
                 try:
                     fecha_formateada = fecha.isoformat()
-                    valores = (id_cliente, fecha_formateada, turno, id_sala, nombre_evento)
+                    valores = (id_cliente, fecha_formateada, id_sala, nombre_evento)
 
                     with sqlite3.connect("coworking.db") as conn:
                         cursor = conn.cursor()
@@ -40,9 +53,17 @@ class Coworking:
                         cursor.execute("PRAGMA foreign_keys = ON;")
 
                         cursor.execute("""
-                            INSERT INTO reservaciones (id_cliente, fecha, turno, id_sala, nombre_evento)
-                            VALUES (?, ?, ?, ?, ?);
+                            INSERT INTO reservaciones (id_cliente, fecha, id_sala, nombre_evento)
+                            VALUES (?, ?, ?, ?);
                         """, valores)
+
+                        num_turno = self.__convertir_turno_a_numero(turno)
+                        valores_relacion = (cursor.lastrowid, num_turno)
+
+                        cursor.execute("""
+                            INSERT INTO reservaciones_turnos (folio, id_turno)
+                            VALUES (?, ?);
+                        """, valores_relacion)
 
                     print("Evento registrado de manera exitosa.")
                 except ValueError as e:
@@ -86,34 +107,21 @@ class Coworking:
                     cursor = conn.cursor()
 
                     cursor.execute("""
-                        WITH disponibles AS (
                         SELECT
                             s.id_sala,
                             s.nombre,
                             s.cupo,
-                            t.turno
-                        FROM
-                            salas s
-                        CROSS JOIN
-                            (SELECT 'Matutino' AS turno
-                            UNION ALL
-                            SELECT 'Vespertino' AS turno
-                            UNION ALL
-                            SELECT 'Nocturno' AS turno) as t
-                        LEFT JOIN reservaciones r ON s.id_sala = r.id_sala
-                                                AND t.turno = r.turno
-                                                AND r.fecha = ?
-                        WHERE
-                            r.id_sala IS NULL)
-
-                        SELECT
-                            d.id_sala,
-                            d.nombre,
-                            d.cupo,
-                            group_concat(d.turno, ', ')
-                        FROM disponibles d
-                        GROUP BY d.id_sala;
-                    """, valores)
+                            group_concat(t.turno,', ')
+                        FROM salas s
+                        CROSS JOIN turnos t
+                        LEFT JOIN (reservaciones r
+                            INNER JOIN reservaciones_turnos rt ON r.folio = rt.folio)
+                        ON s.id_sala = r.id_sala
+                        AND t.id_turno = rt.id_turno
+                        AND r.fecha = ?
+                        WHERE rt.id_reservaciones_turnos IS NULL
+                        GROUP BY s.id_sala
+                        """, valores)
 
                     resultados = cursor.fetchall()
                     return resultados
@@ -160,16 +168,18 @@ class Coworking:
                     cursor = conn.cursor()
 
                     cursor.execute("""
-                    SELECT
-                        r.folio,
-                        s.nombre,
-                        c.nombre,
-                        r.nombre_evento,
-                        r.turno
-                    FROM reservaciones r
-                    JOIN salas s ON s.id_sala = r.id_sala
-                    JOIN clientes c ON c.id_cliente = r.id_cliente
-                    WHERE r.fecha = ?;
+                        SELECT
+                            r.folio,
+                            s.nombre,
+                            c.nombre,
+                            r.nombre_evento,
+                            t.turno
+                        FROM reservaciones r
+                        JOIN salas s ON s.id_sala = r.id_sala
+                        JOIN clientes c ON c.id_cliente = r.id_cliente
+                        JOIN reservaciones_turnos rt ON rt.folio = r.folio
+                        JOIN turnos t ON t.id_turno = rt.id_turno
+                        WHERE r.fecha = ?;
                     """, valores)
 
                     resultados = cursor.fetchall()
@@ -223,13 +233,15 @@ class Coworking:
 
                     cursor.execute("""
                         SELECT
-                            folio,
-                            id_cliente,
-                            fecha,
-                            turno,
-                            id_sala,
-                            nombre_evento
-                        FROM reservaciones
+                            r.folio,
+                            r.id_cliente,
+                            r.fecha,
+                            t.turno,
+                            r.id_sala,
+                            r.nombre_evento
+                        FROM reservaciones r
+                        JOIN reservaciones_turnos rt ON r.folio = rt.folio
+                        JOIN turnos t ON t.id_turno = rt.id_turno
                         WHERE fecha BETWEEN ? AND ?;
                     """, valores)
 
@@ -272,12 +284,14 @@ class Coworking:
 
                     cursor.execute("""
                         SELECT
-                            id_cliente,
-                            fecha,
-                            turno,
-                            id_sala,
-                            nombre_evento
-                        FROM reservaciones
+                            r.id_cliente,
+                            r.fecha,
+                            t.turno,
+                            r.id_sala,
+                            r.nombre_evento
+                        FROM reservaciones r
+                        JOIN reservaciones_turnos rt ON r.folio = rt.folio
+                        JOIN turnos t ON t.id_turno = rt.id_turno
                         WHERE fecha = ?
                         AND id_sala = ?
                         AND turno = ?;
@@ -419,13 +433,42 @@ class Coworking:
                         folio INTEGER PRIMARY KEY,
                         id_cliente INTEGER NOT NULL,
                         fecha TEXT NOT NULL,
-                        turno TEXT NOT NULL,
                         id_sala INTEGER NOT NULL,
                         nombre_evento TEXT NOT NULL,
                         FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
                         FOREIGN KEY (id_sala) REFERENCES salas(id_sala)
                     );
                 """)
+
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS turnos (
+                        id_turno INTEGER PRIMARY KEY,
+                        turno TEXT NOT NULL
+                    );
+                """)
+
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS reservaciones_turnos (
+                        id_reservaciones_turnos INTEGER PRIMARY KEY,
+                        folio INTEGER NOT NULL,
+                        id_turno INTEGER NOT NULL,
+                        FOREIGN KEY (folio) REFERENCES reservaciones(folio),
+                        FOREIGN KEY (id_turno) REFERENCES turnos(id_turno)
+                    );
+                """)
+
+                cursor.execute("""
+                    INSERT INTO turnos (turno) VALUES ('Matutino');
+                """)
+
+                cursor.execute("""
+                    INSERT INTO turnos (turno) VALUES ('Vespertino');
+                """)
+
+                cursor.execute("""
+                    INSERT INTO turnos (turno) VALUES ('Nocturno');
+                """)
+
         except Error as e:
             print(e)
         except Exception:
