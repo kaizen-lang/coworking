@@ -95,7 +95,8 @@ class Coworking:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
         def obtener_salas_disponibles(self, fecha:dt.date) -> list:
-            valores = (fecha,)
+            fecha_formateada = fecha.isoformat()
+            valores = (fecha_formateada,)
             try:
                 with sqlite3.connect("coworking.db") as conn:
                     cursor = conn.cursor()
