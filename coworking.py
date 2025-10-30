@@ -45,7 +45,8 @@ class Coworking:
         def registrar_reservacion(self, id_cliente: int, fecha: dt.date, turno: str, id_sala: int, nombre_evento: str) -> None:
                 try:
                     fecha_formateada = fecha.isoformat()
-                    valores = (id_cliente, fecha_formateada, id_sala, nombre_evento)
+                    num_turno = self.__convertir_turno_a_numero(turno)
+                    valores = (id_cliente, fecha_formateada, id_sala, num_turno, nombre_evento)
 
                     with sqlite3.connect("coworking.db") as conn:
                         cursor = conn.cursor()
@@ -53,17 +54,10 @@ class Coworking:
                         cursor.execute("PRAGMA foreign_keys = ON;")
 
                         cursor.execute("""
-                            INSERT INTO reservaciones (id_cliente, fecha, id_sala, nombre_evento)
-                            VALUES (?, ?, ?, ?);
+                            INSERT INTO reservaciones (id_cliente, fecha, id_turno, id_sala, nombre_evento)
+                            VALUES (?, ?, ?, ?, ?);
                         """, valores)
 
-                        num_turno = self.__convertir_turno_a_numero(turno)
-                        valores_relacion = (cursor.lastrowid, num_turno)
-
-                        cursor.execute("""
-                            INSERT INTO reservaciones_turnos (folio, id_turno)
-                            VALUES (?, ?);
-                        """, valores_relacion)
 
                     print("Evento registrado de manera exitosa.")
                 except ValueError as e:
@@ -107,20 +101,24 @@ class Coworking:
                     cursor = conn.cursor()
 
                     cursor.execute("""
-                        SELECT
-                            s.id_sala,
-                            s.nombre,
-                            s.cupo,
-                            group_concat(t.turno,', ')
-                        FROM salas s
-                        CROSS JOIN turnos t
-                        LEFT JOIN (reservaciones r
-                            INNER JOIN reservaciones_turnos rt ON r.folio = rt.folio)
-                        ON s.id_sala = r.id_sala
-                        AND t.id_turno = rt.id_turno
-                        AND r.fecha = ?
-                        WHERE rt.id_reservaciones_turnos IS NULL AND r.cancelado IS NULL
-                        GROUP BY s.id_sala
+                            SELECT
+                                s.id_sala,
+                                s.nombre,
+                                s.cupo,
+                                group_concat(t.turno, ', ')
+                            FROM salas s
+                            CROSS JOIN turnos t
+                            LEFT JOIN
+                            (
+                                SELECT
+                                *
+                                FROM reservaciones r
+                                JOIN salas s ON s.id_sala = r.id_sala
+                                WHERE cancelado IS NULL
+                                AND r.fecha IS ?
+                            ) AS re ON re.id_turno = t.id_turno AND re.id_sala = s.id_sala
+                            WHERE re.id_turno IS NULL
+                            GROUP BY s.id_sala
                         """, valores)
 
                     resultados = cursor.fetchall()
@@ -177,8 +175,7 @@ class Coworking:
                         FROM reservaciones r
                         JOIN salas s ON s.id_sala = r.id_sala
                         JOIN clientes c ON c.id_cliente = r.id_cliente
-                        JOIN reservaciones_turnos rt ON rt.folio = r.folio
-                        JOIN turnos t ON t.id_turno = rt.id_turno
+                        JOIN turnos t ON r.id_turno = t.id_turno
                         WHERE r.fecha = ?
                         AND r.cancelado IS NULL;
                     """, valores)
@@ -241,8 +238,7 @@ class Coworking:
                             r.id_sala,
                             r.nombre_evento
                         FROM reservaciones r
-                        JOIN reservaciones_turnos rt ON r.folio = rt.folio
-                        JOIN turnos t ON t.id_turno = rt.id_turno
+                        JOIN turnos t ON t.id_turno = r.id_turno
                         WHERE fecha BETWEEN ? AND ?
                         AND r.cancelado IS NULL;
                     """, valores)
@@ -292,8 +288,7 @@ class Coworking:
                             r.id_sala,
                             r.nombre_evento
                         FROM reservaciones r
-                        JOIN reservaciones_turnos rt ON r.folio = rt.folio
-                        JOIN turnos t ON t.id_turno = rt.id_turno
+                        JOIN turnos t ON t.id_turno = r.id_turno
                         WHERE fecha = ?
                         AND id_sala = ?
                         AND turno = ?
@@ -451,19 +446,6 @@ class Coworking:
                 """)
 
                 cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS reservaciones (
-                        folio INTEGER PRIMARY KEY,
-                        id_cliente INTEGER NOT NULL,
-                        fecha TEXT NOT NULL,
-                        id_sala INTEGER NOT NULL,
-                        nombre_evento TEXT NOT NULL,
-                        cancelado INTEGER DEFAULT NULL,
-                        FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
-                        FOREIGN KEY (id_sala) REFERENCES salas(id_sala)
-                    );
-                """)
-
-                cursor.execute("""
                     CREATE TABLE IF NOT EXISTS turnos (
                         id_turno INTEGER PRIMARY KEY,
                         turno TEXT NOT NULL
@@ -471,12 +453,17 @@ class Coworking:
                 """)
 
                 cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS reservaciones_turnos (
-                        id_reservaciones_turnos INTEGER PRIMARY KEY,
-                        folio INTEGER NOT NULL,
+                    CREATE TABLE IF NOT EXISTS reservaciones (
+                        folio INTEGER PRIMARY KEY,
+                        id_cliente INTEGER NOT NULL,
+                        fecha TEXT NOT NULL,
                         id_turno INTEGER NOT NULL,
-                        FOREIGN KEY (folio) REFERENCES reservaciones(folio),
-                        FOREIGN KEY (id_turno) REFERENCES turnos(id_turno)
+                        id_sala INTEGER NOT NULL,
+                        nombre_evento TEXT NOT NULL,
+                        cancelado INTEGER,
+                        FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
+                        FOREIGN KEY (id_sala) REFERENCES salas(id_sala),
+                        FOREIGN KEY (id_turno) REFERENCES turnos(id_turno)	
                     );
                 """)
 
