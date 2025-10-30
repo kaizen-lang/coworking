@@ -119,7 +119,7 @@ class Coworking:
                         ON s.id_sala = r.id_sala
                         AND t.id_turno = rt.id_turno
                         AND r.fecha = ?
-                        WHERE rt.id_reservaciones_turnos IS NULL
+                        WHERE rt.id_reservaciones_turnos IS NULL AND r.cancelado IS NULL
                         GROUP BY s.id_sala
                         """, valores)
 
@@ -179,7 +179,8 @@ class Coworking:
                         JOIN clientes c ON c.id_cliente = r.id_cliente
                         JOIN reservaciones_turnos rt ON rt.folio = r.folio
                         JOIN turnos t ON t.id_turno = rt.id_turno
-                        WHERE r.fecha = ?;
+                        WHERE r.fecha = ?
+                        AND r.cancelado IS NULL;
                     """, valores)
 
                     resultados = cursor.fetchall()
@@ -242,7 +243,8 @@ class Coworking:
                         FROM reservaciones r
                         JOIN reservaciones_turnos rt ON r.folio = rt.folio
                         JOIN turnos t ON t.id_turno = rt.id_turno
-                        WHERE fecha BETWEEN ? AND ?;
+                        WHERE fecha BETWEEN ? AND ?
+                        AND r.cancelado IS NULL;
                     """, valores)
 
                     resultados = cursor.fetchall()
@@ -294,7 +296,8 @@ class Coworking:
                         JOIN turnos t ON t.id_turno = rt.id_turno
                         WHERE fecha = ?
                         AND id_sala = ?
-                        AND turno = ?;
+                        AND turno = ?
+                        AND r.cancelado IS NULL;
                     """, valores)
 
                     resultados = cursor.fetchall()
@@ -310,6 +313,25 @@ class Coworking:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
             return True
+
+        def cancelar_reservación(self, folio: int):
+            valores = (folio,)
+
+            try:
+                with sqlite3.connect("coworking.db") as conn:
+                    cursor = conn.cursor()
+
+                    cursor.execute("""
+                        UPDATE reservaciones
+                        SET cancelado = 1
+                        WHERE folio = ?;
+                    """, valores)
+
+                    print("Reservación cancelada exitosamente.")
+            except Error as e:
+                print(e)
+            except Exception:
+                print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
     class ManejarSalas:
         """Clase para el manejo de salas."""
@@ -435,6 +457,7 @@ class Coworking:
                         fecha TEXT NOT NULL,
                         id_sala INTEGER NOT NULL,
                         nombre_evento TEXT NOT NULL,
+                        cancelado INTEGER DEFAULT NULL,
                         FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
                         FOREIGN KEY (id_sala) REFERENCES salas(id_sala)
                     );
@@ -751,8 +774,7 @@ class Coworking:
                 fecha_str = input("Escriba la fecha a consultar (mm-dd-yyyy) o presione Enter para la fecha actual: ").strip()
 
                 if not fecha_str:
-                    fecha = dt.date.today()
-                    break
+                    fecha_str = dt.date.today().strftime("%m-%d-%Y")
 
                 fecha = dt.datetime.strptime(fecha_str, "%m-%d-%Y").date()
 
@@ -771,10 +793,66 @@ class Coworking:
             exportar =  input("¿Desea exportar estas reservaciones? (SI/NO): ").upper()
             if exportar == "SI":
                 self.__exportar(registros_encontrados, fecha)
+        else:
+            print("No se encontraron reservaciones para el día especificado.")
+
+
+    def __cancelar_reservacion(self) -> None:
+        """Opción #4 del menú. Permite cancelar una reservación."""
+        print("Para cancelar su reservación, primero especifique el rango de fechas")
+
+        while True:
+            try:
+                fecha_inicio_str = input("Escriba la fecha de inicio del rango (mm-dd-yyyy): ")
+                fecha_inicio = dt.datetime.strptime(fecha_inicio_str, "%m-%d-%Y").date()
+
+                fecha_fin_str = input("Escriba la fecha de fin del rango (mm-dd-yyyy): ")
+                fecha_fin = dt.datetime.strptime(fecha_fin_str, "%m-%d-%Y").date()
+
+                if fecha_inicio > fecha_fin:
+                    print("La fecha de inicio no puede ser posterior a la de fin.")
+                    continue
+                break
+            except ValueError:
+                print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
+
+                if self.__verificar_salida():
+                    return
+
+                continue
+
+
+        resultados = self.reservaciones.obtener_reservaciones_en_rango(fecha_inicio, fecha_fin)
+        self.reservaciones.mostrar_reservaciones_en_rango(fecha_inicio, fecha_fin, resultados)
+        folios_validos = [folio[0] for folio in resultados]
+
+        while True:
+            try:
+                folio = int(self.__pedir_string("Escriba el folio de la reservación a cancelar: "))
+
+                if folio not in folios_validos:
+                    print("Folio no válido.")
+                    raise ValueError
+
+                break
+            except ValueError:
+                if self.__verificar_salida():
+                    return
+                continue
+
+        print(f"¿Realmente quiere cancelar esta reservación con el folio {folio}?")
+        while True:
+            eliminar = self.__pedir_string("(S) - Sí, (N) - No:").upper()
+            if eliminar == "S":
+                self.reservaciones.cancelar_reservación(folio)
+                break
+            elif eliminar == "N":
+                return
+
 
 
     def __registrar_nuevo_cliente(self) -> None:
-        """Opción #4 del menú. Permite registrar a un nuevo cliente.
+        """Opción #5 del menú. Permite registrar a un nuevo cliente.
 
         Returns:
             None: Usado para salir de la función en caso de que el usuario lo decida.
@@ -803,7 +881,7 @@ class Coworking:
         self.clientes.registrar_cliente(nombre, apellidos)
 
     def __registrar_nueva_sala(self) -> None:
-        """Opción #5 del menú. Registra una nueva sala.
+        """Opción #6 del menú. Registra una nueva sala.
 
         Returns:
             None: Usado para salir de la función en caso de que el usuario lo decida.
@@ -842,15 +920,16 @@ class Coworking:
             print("(1) - Registrar reservación de sala")
             print("(2) - Editar el nombre de una reservación ya hecha")
             print("(3) - Consultar reservaciones de una fecha específica")
-            print("(4) - Registrar a un nuevo cliente")
-            print("(5) - Registrar una sala")
-            print("(6) - Salir del programa\n")
+            print("(4) - Cancelar una reservación")
+            print("(5) - Registrar a un nuevo cliente")
+            print("(6) - Registrar una sala")
+            print("(7) - Salir del programa\n")
 
             while True:
                 try:
                     opcion = int(input("Escribe el número de la opción que vas a escoger: "))
 
-                    if opcion < 1 or opcion > 6:
+                    if opcion < 1 or opcion > 7:
                         print("ERROR: Opción no válida. Escoge entre 1 y 6.")
                         continue
 
@@ -869,10 +948,12 @@ class Coworking:
                 case 3:
                     self.__consultar_reservaciones_fecha()
                 case 4:
-                    self.__registrar_nuevo_cliente()
+                    self.__cancelar_reservacion()
                 case 5:
-                    self.__registrar_nueva_sala()
+                    self.__registrar_nuevo_cliente()
                 case 6:
+                    self.__registrar_nueva_sala()
+                case 7:
                     confirmar = input("¿Desea salir del programa, los datos se guardaran en la base de datos? (S/N): ").upper()
                     if confirmar == "S":
                         print("Saliendo del programa...")
