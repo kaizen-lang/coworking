@@ -67,70 +67,6 @@ class Coworking:
                 except Exception:
                     print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
-        def mostrar_salas_disponibles(self, fecha:dt.date, datos:list = [])->None:
-            """Muestra las salas disponibles en una fecha específica.
-
-            Args:
-                lista_salas (dict): Lista que contiene las salas registradas.
-                fecha (dt.date): Fecha a consultar.
-            """
-            try:
-                if datos:
-                    resultados = datos
-                else:
-                    resultados = self.obtener_salas_disponibles(fecha)
-
-                if resultados:
-                    print(f"\n{'-'*75}")
-                    print(f"|{'ID sala':^10}|{'Nombre':^10}|{'Cupo':^10}|{'Turnos disponibles':^40}|")
-                    print('='*75)
-                    for id_sala, nombre, cupo, turnos_disponibles in resultados:
-                        print(f"|{id_sala:^10}|{nombre:^10}|{cupo:^10}|{turnos_disponibles:^40}|")
-                    print('-'*75)
-                else:
-                    print("No hay salas disponibles para esta fecha.")
-            except Error as e:
-                print(e)
-            except Exception:
-                print(f"Ocurrió un error: {sys.exc_info()[0]}")
-
-        def obtener_salas_disponibles(self, fecha:dt.date) -> list:
-            fecha_formateada = fecha.isoformat()
-            valores = (fecha_formateada,)
-            try:
-                with sqlite3.connect("coworking.db") as conn:
-                    cursor = conn.cursor()
-
-                    cursor.execute("""
-                            SELECT
-                                s.id_sala,
-                                s.nombre,
-                                s.cupo,
-                                group_concat(t.turno, ', ')
-                            FROM salas s
-                            CROSS JOIN turnos t
-                            LEFT JOIN
-                            (
-                                SELECT
-                                *
-                                FROM reservaciones r
-                                JOIN salas s ON s.id_sala = r.id_sala
-                                WHERE cancelado IS NULL
-                                AND r.fecha IS ?
-                            ) AS re ON re.id_turno = t.id_turno AND re.id_sala = s.id_sala
-                            WHERE re.id_turno IS NULL
-                            GROUP BY s.id_sala
-                        """, valores)
-
-                    resultados = cursor.fetchall()
-                    return resultados
-
-            except Error as e:
-                print(e)
-            except Exception:
-                print(f"Ocurrió un error: {sys.exc_info()[0]}")
-
-
         def mostrar_reservaciones_por_fecha(self, fecha: dt.date, datos: list = []) -> None:
             """Muestra las reservaciones por fecha en formato tabular.
 
@@ -348,6 +284,69 @@ class Coworking:
                 print("Sala registrada exitosamente.")
             except ValueError as e:
                 print(e)
+            except Error as e:
+                print(e)
+            except Exception:
+                print(f"Ocurrió un error: {sys.exc_info()[0]}")
+
+        def mostrar_salas_disponibles(self, fecha:dt.date, datos:list = [])->None:
+            """Muestra las salas disponibles en una fecha específica.
+
+            Args:
+                lista_salas (dict): Lista que contiene las salas registradas.
+                fecha (dt.date): Fecha a consultar.
+            """
+            try:
+                if datos:
+                    resultados = datos
+                else:
+                    resultados = self.obtener_salas_disponibles(fecha)
+
+                if resultados:
+                    print(f"\n{'-'*75}")
+                    print(f"|{'ID sala':^10}|{'Nombre':^10}|{'Cupo':^10}|{'Turnos disponibles':^40}|")
+                    print('='*75)
+                    for id_sala, nombre, cupo, turnos_disponibles in resultados:
+                        print(f"|{id_sala:^10}|{nombre:^10}|{cupo:^10}|{turnos_disponibles:^40}|")
+                    print('-'*75)
+                else:
+                    print("No hay salas disponibles para esta fecha.")
+            except Error as e:
+                print(e)
+            except Exception:
+                print(f"Ocurrió un error: {sys.exc_info()[0]}")
+
+        def obtener_salas_disponibles(self, fecha:dt.date) -> list:
+            fecha_formateada = fecha.isoformat()
+            valores = (fecha_formateada,)
+            try:
+                with sqlite3.connect("coworking.db") as conn:
+                    cursor = conn.cursor()
+
+                    cursor.execute("""
+                            SELECT
+                                s.id_sala,
+                                s.nombre,
+                                s.cupo,
+                                group_concat(t.turno, ', ')
+                            FROM salas s
+                            CROSS JOIN turnos t
+                            LEFT JOIN
+                            (
+                                SELECT
+                                *
+                                FROM reservaciones r
+                                JOIN salas s ON s.id_sala = r.id_sala
+                                WHERE cancelado IS NULL
+                                AND r.fecha IS ?
+                            ) AS re ON re.id_turno = t.id_turno AND re.id_sala = s.id_sala
+                            WHERE re.id_turno IS NULL
+                            GROUP BY s.id_sala
+                        """, valores)
+
+                    resultados = cursor.fetchall()
+                    return resultados
+
             except Error as e:
                 print(e)
             except Exception:
@@ -637,11 +636,11 @@ class Coworking:
                 continue
 
 
-        lista_salas = self.reservaciones.obtener_salas_disponibles(fecha)
+        lista_salas = self.salas.obtener_salas_disponibles(fecha)
         ids_sala_validos = [sala[0] for sala in lista_salas]
 
         while True:
-            self.reservaciones.mostrar_salas_disponibles(fecha, lista_salas)
+            self.salas.mostrar_salas_disponibles(fecha, lista_salas)
             try:
                 id_sala = int(self.__pedir_string("Escriba el ID de la sala a escoger: "))
                 if id_sala not in ids_sala_validos:
