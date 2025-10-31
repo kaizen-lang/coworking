@@ -46,7 +46,7 @@ class Coworking:
                 try:
                     fecha_formateada = fecha.isoformat()
                     num_turno = self.__convertir_turno_a_numero(turno)
-                    valores = (id_cliente, fecha_formateada, id_sala, num_turno, nombre_evento)
+                    valores = (id_cliente, fecha_formateada, num_turno, id_sala, nombre_evento)
 
                     with sqlite3.connect("coworking.db") as conn:
                         cursor = conn.cursor()
