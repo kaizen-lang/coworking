@@ -889,9 +889,14 @@ class Coworking:
             try:
                 cupo_str = self.__pedir_string("Escriba el cupo de la sala: ")
                 cupo = int(cupo_str)
+
+                if cupo <= 0:
+                    print("El cupo debe ser mayor a cero.")
+                    raise ValueError
                 break
+
             except ValueError:
-                print("Valor inválido")
+                print("Error: Valor inválido")
                 if self.__verificar_salida():
                     return
                 continue
