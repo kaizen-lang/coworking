@@ -81,12 +81,12 @@ class Coworking:
                     resultados = self.obtener_salas_disponibles(fecha)
 
                 if resultados:
-                    print(f"\n{"-"*75}")
-                    print(f"|{"ID sala":^10}|{"Nombre":^10}|{"Cupo":^10}|{"Turnos disponibles":^40}|")
-                    print("="*75)
+                    print(f"\n{'-'*75}")
+                    print(f"|{'ID sala':^10}|{'Nombre':^10}|{'Cupo':^10}|{'Turnos disponibles':^40}|")
+                    print('='*75)
                     for id_sala, nombre, cupo, turnos_disponibles in resultados:
                         print(f"|{id_sala:^10}|{nombre:^10}|{cupo:^10}|{turnos_disponibles:^40}|")
-                    print("-"*75)
+                    print('-'*75)
                 else:
                     print("No hay salas disponibles para esta fecha.")
             except Error as e:
@@ -145,12 +145,12 @@ class Coworking:
                     resultados = self.obtener_reservaciones_por_fecha(fecha)
 
                 if resultados:
-                    print(f"\n{"-"*106}")
-                    print(f"|{"Folio":^10}|{"Nombre de la sala":^25}|{"Nombre del cliente":^20}|{"Nombre del evento":^30}|{"Turno":^15}|")
-                    print("="*106)
+                    print(f"\n{'-'*106}")
+                    print(f"|{'Folio':^10}|{'Nombre de la sala':^25}|{'Nombre del cliente':^20}|{'Nombre del evento':^30}|{'Turno':^15}|")
+                    print('='*106)
                     for folio, nombre_sala, nombre_cliente, nombre_evento, turno in resultados:
                         print(f"|{folio:^10}|{nombre_sala:^25}|{nombre_cliente:^20}|{nombre_evento:^30}|{turno:^15}|")
-                    print("-"*106)
+                    print('-'*106)
                 else:
                     print("No hay reservaciones disponibles para esta fecha.")
             except Error as e:
@@ -208,9 +208,9 @@ class Coworking:
                     resultados = self.obtener_reservaciones_en_rango(fecha_inicio, fecha_fin)
 
                 if resultados:
-                    print(f"\n{"-"*112}")
-                    print(f"|{"Folio":^10}|{"ID cliente":^15}|{"Fecha":^15}|{"Turno":^15}|{"ID sala":^10}|{"Nombre del evento":^40}|")
-                    print("="*112)
+                    print(f"\n{'-'*112}")
+                    print(f"|{'Folio':^10}|{'ID cliente':^15}|{'Fecha':^15}|{'Turno':^15}|{'ID sala':^10}|{'Nombre del evento':^40}|")
+                    print('='*112)
                     for folio, id_cliente, fecha, turno, id_sala, nombre_evento in resultados:
                         fecha = dt.date.fromisoformat(fecha)
                         fecha = fecha.strftime('%m-%d-%Y')
@@ -385,12 +385,12 @@ class Coworking:
                     resultados = self.obtener_clientes()
 
                 if resultados:
-                    print(f"\n{"-"*63}")
-                    print(f"|{"ID":^10}|{"Nombre":^25}|{"Apellidos":^25}|")
-                    print(f"\n{"="*63}")
+                    print(f"\n{'-'*63}")
+                    print(f"|{'ID':^10}|{'Nombre':^25}|{'Apellidos':^25}|")
+                    print(f"\n{'='*63}")
                     for id_cliente, nombre, apellidos in resultados:
                         print(f"|{id_cliente:^10}|{nombre:^25}|{apellidos:^25}|")
-                    print("-"*63)
+                    print('-'*63)
                 else:
                     print("No hay clientes registrados.")
             except Error as e:
@@ -464,7 +464,7 @@ class Coworking:
                         cancelado INTEGER,
                         FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
                         FOREIGN KEY (id_sala) REFERENCES salas(id_sala),
-                        FOREIGN KEY (id_turno) REFERENCES turnos(id_turno)	
+                        FOREIGN KEY (id_turno) REFERENCES turnos(id_turno)
                     );
                 """)
 
