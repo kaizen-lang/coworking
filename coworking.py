@@ -201,6 +201,9 @@ class Coworking:
                 list: Lista de tuplas con los datos de las reservaciones.
             """
 
+            fecha_inicio = fecha_inicio.isoformat()
+            fecha_fin = fecha_fin.isoformat()
+
             valores = (fecha_inicio, fecha_fin)
             try:
                 with sqlite3.connect("coworking.db") as conn:
