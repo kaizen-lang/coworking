@@ -9,6 +9,7 @@ import sqlite3
 from sqlite3 import Error
 import sys
 import os
+from tabulate import tabulate
 
 class Coworking:
     """Clase principal del coworking."""
@@ -101,12 +102,9 @@ class Coworking:
                     resultados = self.obtener_reservaciones_por_fecha(fecha)
 
                 if resultados:
-                    print(f"\n{'-'*106}")
-                    print(f"|{'Folio':^10}|{'Nombre de la sala':^25}|{'Nombre del cliente':^20}|{'Nombre del evento':^30}|{'Turno':^15}|")
-                    print('='*106)
-                    for folio, nombre_sala, nombre_cliente, nombre_evento, turno in resultados:
-                        print(f"|{folio:^10}|{nombre_sala:^25}|{nombre_cliente:^20}|{nombre_evento:^30}|{turno:^15}|")
-                    print('-'*106)
+                    headers = ['Folio', 'Nombre de la sala', 'Nombre del cliente', 'Nombre del evento', 'Turno']
+                    filas = [[str(row[0]), row[1], row[2], row[3], row[4]] for row in resultados]
+                    print(tabulate(filas, headers, tablefmt='grid'))
                 else:
                     print("No hay reservaciones disponibles para esta fecha.")
             except Error as e:
@@ -135,7 +133,7 @@ class Coworking:
                         SELECT
                             r.folio,
                             s.nombre,
-                            c.nombre,
+                            c.nombre || ' ' || c.apellidos AS nombre_cliente,
                             r.nombre_evento,
                             t.turno
                         FROM reservaciones r
@@ -176,34 +174,22 @@ class Coworking:
                     resultados = self.obtener_reservaciones_en_rango(fecha_inicio, fecha_fin)
 
                 if resultados:
-                    print(f"\n{'-'*112}")
-                    print(f"|{'Folio':^10}|{'ID cliente':^15}|{'Fecha':^15}|{'Turno':^15}|{'ID sala':^10}|{'Nombre del evento':^40}|")
-                    print('='*112)
-                    for folio, id_cliente, fecha, turno, id_sala, nombre_evento in resultados:
-                        fecha = dt.date.fromisoformat(fecha)
-                        fecha = fecha.strftime('%m-%d-%Y')
-                        print(f"|{folio:^10}|{id_cliente:^15}|{fecha:^15}|{turno:^15}|{id_sala:^10}|{nombre_evento:^40}|")
-                    print("-"*112)
+                    headers = ['Folio', 'Nombre del cliente', 'Fecha', 'Turno', 'ID sala', 'Nombre del evento']
+                    filas = []
+                    for row in resultados:
+                        fecha_obj = dt.date.fromisoformat(row[2])
+                        fecha_str = fecha_obj.strftime('%m-%d-%Y')
+                        filas.append([str(row[0]), row[1], fecha_str, row[3], str(row[4]), row[5]])
+                    print(tabulate(filas, headers, tablefmt='grid'))
                 else:
                     print("No hay reservaciones disponibles para esta fecha.")
+                return resultados
             except Error as e:
                 print(e)
             except Exception:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
-
         def obtener_reservaciones_en_rango(self, fecha_inicio: dt.date, fecha_fin: dt.date) -> list:
-            """Obtiene las reservaciones especificando un rango de fechas.
-            Args:
-                fecha_inicio (dt.date): Fecha de inicio a consultar.
-                fecha_fin (dt.date): Fecha fin a consultar.
-            Returns:
-                list: Lista de tuplas con los datos de las reservaciones.
-            """
-
-            fecha_inicio = fecha_inicio.isoformat()
-            fecha_fin = fecha_fin.isoformat()
-
             valores = (fecha_inicio, fecha_fin)
             try:
                 with sqlite3.connect("coworking.db") as conn:
@@ -212,13 +198,14 @@ class Coworking:
                     cursor.execute("""
                         SELECT
                             r.folio,
-                            r.id_cliente,
+                            c.nombre || ' ' || c.apellidos AS nombre_cliente,
                             r.fecha,
                             t.turno,
                             r.id_sala,
                             r.nombre_evento
                         FROM reservaciones r
                         JOIN turnos t ON t.id_turno = r.id_turno
+                        JOIN clientes c ON c.id_cliente = r.id_cliente
                         WHERE fecha BETWEEN ? AND ?
                         AND r.cancelado IS NULL;
                     """, valores)
@@ -373,12 +360,9 @@ class Coworking:
                     resultados = self.obtener_salas_disponibles(fecha)
 
                 if resultados:
-                    print(f"\n{'-'*75}")
-                    print(f"|{'ID sala':^10}|{'Nombre':^10}|{'Cupo':^10}|{'Turnos disponibles':^40}|")
-                    print('='*75)
-                    for id_sala, nombre, cupo, turnos_disponibles in resultados:
-                        print(f"|{id_sala:^10}|{nombre:^10}|{cupo:^10}|{turnos_disponibles:^40}|")
-                    print('-'*75)
+                    headers = ['ID sala', 'Nombre', 'Cupo', 'Turnos disponibles']
+                    filas = [[str(row[0]), row[1], str(row[2]), row[3]] for row in resultados]
+                    print(tabulate(filas, headers, tablefmt='grid'))
                 else:
                     print("No hay salas disponibles para esta fecha.")
             except Error as e:
@@ -418,7 +402,7 @@ class Coworking:
                                 FROM reservaciones r
                                 JOIN salas s ON s.id_sala = r.id_sala
                                 WHERE cancelado IS NULL
-                                AND r.fecha IS ?
+                                AND r.fecha = ?
                             ) AS re ON re.id_turno = t.id_turno AND re.id_sala = s.id_sala
                             WHERE re.id_turno IS NULL
                             GROUP BY s.id_sala
@@ -475,12 +459,9 @@ class Coworking:
                     resultados = self.obtener_clientes()
 
                 if resultados:
-                    print(f"\n{'-'*63}")
-                    print(f"|{'ID':^10}|{'Nombre':^25}|{'Apellidos':^25}|")
-                    print(f"\n{'='*63}")
-                    for id_cliente, nombre, apellidos in resultados:
-                        print(f"|{id_cliente:^10}|{nombre:^25}|{apellidos:^25}|")
-                    print('-'*63)
+                    headers = ['ID', 'Nombre', 'Apellidos']
+                    filas = [[str(row[0]), row[1], row[2]] for row in resultados]
+                    print(tabulate(filas, headers, tablefmt='grid'))
                 else:
                     print("No hay clientes registrados.")
             except Error as e:
@@ -640,6 +621,7 @@ class Coworking:
             for folio, datos in reservaciones.items():
                 manejar_csv.writerow((folio, datos["nombre_sala"], datos["nombre_cliente"], datos["nombre_evento"], datos["turno"], datos["fecha"]))
 
+        print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha}.csv'")
 
     def __exportar_excel(self, reservaciones: dict, fecha: str) -> None:
         """Exporta las reservaciones a formato XLSX (Excel)
@@ -1097,7 +1079,7 @@ class Coworking:
                     self.__registrar_nueva_sala()
                 case 7:
                     confirmar = input("¿Desea salir del programa, los datos se guardaran en la base de datos? (S/N): ").upper()
-                    if confirmar == "S":
+                    if confirmar == "SI":
                         print("Saliendo del programa...")
                         break
 
