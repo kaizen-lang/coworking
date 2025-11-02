@@ -673,6 +673,14 @@ class Coworking:
             hoja.cell(row=renglon, column=5, value=datos["turno"]).alignment = centrado
             hoja.cell(row=renglon, column=6, value=datos["fecha"]).alignment = centrado
 
+        for column in hoja.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            hoja.column_dimensions[column_letter].width = max_length + 2  # +2 = pequeño margen
+
         libro.save(f"reservaciones_{fecha}.xlsx")
         print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha}.xlsx'")
 
