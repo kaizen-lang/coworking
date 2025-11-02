@@ -5,11 +5,11 @@ import json
 import csv
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side
-
 import sqlite3
 from sqlite3 import Error
 import sys
 import os
+from tabulate import tabulate
 
 class Coworking:
     """Clase principal del coworking."""
@@ -30,6 +30,15 @@ class Coworking:
             pass
 
         def __convertir_turno_a_numero(self, turno: str) -> int:
+            """Convierte un string de turno a su número correspondiente.
+
+            Args:
+                turno (str): String que representa al turno (Matutino, Vespertino o Nocturno)
+
+            Returns:
+                int: Número que representa al turno (1, 2 o 3)
+            """
+
             resultado = 0
 
             match turno:
@@ -43,100 +52,47 @@ class Coworking:
             return resultado
 
         def registrar_reservacion(self, id_cliente: int, fecha: dt.date, turno: str, id_sala: int, nombre_evento: str) -> None:
-                try:
-                    fecha_formateada = fecha.isoformat()
-                    valores = (id_cliente, fecha_formateada, id_sala, nombre_evento)
-
-                    with sqlite3.connect("coworking.db") as conn:
-                        cursor = conn.cursor()
-
-                        cursor.execute("PRAGMA foreign_keys = ON;")
-
-                        cursor.execute("""
-                            INSERT INTO reservaciones (id_cliente, fecha, id_sala, nombre_evento)
-                            VALUES (?, ?, ?, ?);
-                        """, valores)
-
-                        num_turno = self.__convertir_turno_a_numero(turno)
-                        valores_relacion = (cursor.lastrowid, num_turno)
-
-                        cursor.execute("""
-                            INSERT INTO reservaciones_turnos (folio, id_turno)
-                            VALUES (?, ?);
-                        """, valores_relacion)
-
-                    print("Evento registrado de manera exitosa.")
-                except ValueError as e:
-                    print(e)
-                except Error as e:
-                    print(e)
-                except Exception:
-                    print(f"Ocurrió un error: {sys.exc_info()[0]}")
-
-        def mostrar_salas_disponibles(self, fecha:dt.date, datos:list = [])->None:
-            """Muestra las salas disponibles en una fecha específica.
+            """Registra una reservación en la base de datos.
 
             Args:
-                lista_salas (dict): Lista que contiene las salas registradas.
-                fecha (dt.date): Fecha a consultar.
+                id_cliente (int): ID del cliente.
+                fecha (dt.date): Fecha de la reservación.
+                turno (str): Turno de la reservación.
+                id_sala (int): ID de la sala.
+                nombre_evento (str): Nombre del evento.
             """
-            try:
-                if datos:
-                    resultados = datos
-                else:
-                    resultados = self.obtener_salas_disponibles(fecha)
 
-                if resultados:
-                    print(f"\n{"-"*75}")
-                    print(f"|{"ID sala":^10}|{"Nombre":^10}|{"Cupo":^10}|{"Turnos disponibles":^40}|")
-                    print("="*75)
-                    for id_sala, nombre, cupo, turnos_disponibles in resultados:
-                        print(f"|{id_sala:^10}|{nombre:^10}|{cupo:^10}|{turnos_disponibles:^40}|")
-                    print("-"*75)
-                else:
-                    print("No hay salas disponibles para esta fecha.")
-            except Error as e:
-                print(e)
-            except Exception:
-                print(f"Ocurrió un error: {sys.exc_info()[0]}")
-
-        def obtener_salas_disponibles(self, fecha:dt.date) -> list:
-            valores = (fecha,)
             try:
+                fecha_formateada = fecha.isoformat()
+                num_turno = self.__convertir_turno_a_numero(turno)
+                valores = (id_cliente, fecha_formateada, num_turno, id_sala, nombre_evento)
+
                 with sqlite3.connect("coworking.db") as conn:
                     cursor = conn.cursor()
 
+                    cursor.execute("PRAGMA foreign_keys = ON;")
+
                     cursor.execute("""
-                        SELECT
-                            s.id_sala,
-                            s.nombre,
-                            s.cupo,
-                            group_concat(t.turno,', ')
-                        FROM salas s
-                        CROSS JOIN turnos t
-                        LEFT JOIN (reservaciones r
-                            INNER JOIN reservaciones_turnos rt ON r.folio = rt.folio)
-                        ON s.id_sala = r.id_sala
-                        AND t.id_turno = rt.id_turno
-                        AND r.fecha = ?
-                        WHERE rt.id_reservaciones_turnos IS NULL
-                        GROUP BY s.id_sala
-                        """, valores)
+                        INSERT INTO reservaciones (id_cliente, fecha, id_turno, id_sala, nombre_evento)
+                        VALUES (?, ?, ?, ?, ?);
+                    """, valores)
 
-                    resultados = cursor.fetchall()
-                    return resultados
 
+                print("Evento registrado de manera exitosa.")
+            except ValueError as e:
+                print(e)
             except Error as e:
                 print(e)
             except Exception:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
-
-        def mostrar_reservaciones_por_fecha(self, fecha: dt.date, datos: list = []) -> None:
+        def mostrar_reservaciones_por_fecha(self, fecha: dt.date, datos: list = None) -> None:
             """Muestra las reservaciones por fecha en formato tabular.
 
             Args:
                 fecha (dt.date): Fecha a consultar.
+                datos (list): Lista que contiene los datos de la consulta,
+                en caso de haberla hecho previamente. (opcional)
             """
 
             try:
@@ -146,12 +102,9 @@ class Coworking:
                     resultados = self.obtener_reservaciones_por_fecha(fecha)
 
                 if resultados:
-                    print(f"\n{"-"*106}")
-                    print(f"|{"Folio":^10}|{"Nombre de la sala":^25}|{"Nombre del cliente":^20}|{"Nombre del evento":^30}|{"Turno":^15}|")
-                    print("="*106)
-                    for folio, nombre_sala, nombre_cliente, nombre_evento, turno in resultados:
-                        print(f"|{folio:^10}|{nombre_sala:^25}|{nombre_cliente:^20}|{nombre_evento:^30}|{turno:^15}|")
-                    print("-"*106)
+                    headers = ['Folio', 'Nombre de la sala', 'Nombre del cliente', 'Nombre del evento', 'Turno']
+                    filas = [[str(row[0]), row[1], row[2], row[3], row[4]] for row in resultados]
+                    print(tabulate(filas, headers, tablefmt='grid'))
                 else:
                     print("No hay reservaciones disponibles para esta fecha.")
             except Error as e:
@@ -160,6 +113,15 @@ class Coworking:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
         def obtener_reservaciones_por_fecha(self, fecha: dt.date) -> list:
+            """Obtiene las reservaciones por fecha.
+
+            Args:
+                fecha (dt.date): Fecha a consultar.
+
+            Returns:
+                list: Lista de tuplas con los datos de las reservaciones.
+            """
+
             fecha_formateada = fecha.isoformat()
             valores = (fecha_formateada,)
 
@@ -171,15 +133,15 @@ class Coworking:
                         SELECT
                             r.folio,
                             s.nombre,
-                            c.nombre,
+                            c.nombre || ' ' || c.apellidos AS nombre_cliente,
                             r.nombre_evento,
                             t.turno
                         FROM reservaciones r
                         JOIN salas s ON s.id_sala = r.id_sala
                         JOIN clientes c ON c.id_cliente = r.id_cliente
-                        JOIN reservaciones_turnos rt ON rt.folio = r.folio
-                        JOIN turnos t ON t.id_turno = rt.id_turno
-                        WHERE r.fecha = ?;
+                        JOIN turnos t ON r.id_turno = t.id_turno
+                        WHERE r.fecha = ?
+                        AND r.cancelado IS NULL;
                     """, valores)
 
                     resultados = cursor.fetchall()
@@ -192,16 +154,19 @@ class Coworking:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
 
-        def mostrar_reservaciones_en_rango(self, fecha_inicio: dt.date, fecha_fin: dt.date, datos: list = []) -> list:
+        def mostrar_reservaciones_en_rango(self, fecha_inicio: dt.date, fecha_fin: dt.date, datos: list = None) -> list:
             """Muestra las reservaciones como formato tabular dentro de un rango de fechas definido.
 
             Args:
                 fecha_inicio (date): Fecha de inicio a consultar.
                 fecha_fin (date): Fecha fin a consultar.
+                datos (list): Lista con los datos de las reservaciones. (opcional)
+
 
             Returns:
                 list: Lista de folios válidos en el rango.
             """
+
             try:
                 if datos:
                     resultados = datos
@@ -209,21 +174,20 @@ class Coworking:
                     resultados = self.obtener_reservaciones_en_rango(fecha_inicio, fecha_fin)
 
                 if resultados:
-                    print(f"\n{"-"*112}")
-                    print(f"|{"Folio":^10}|{"ID cliente":^15}|{"Fecha":^15}|{"Turno":^15}|{"ID sala":^10}|{"Nombre del evento":^40}|")
-                    print("="*112)
-                    for folio, id_cliente, fecha, turno, id_sala, nombre_evento in resultados:
-                        fecha = dt.date.fromisoformat(fecha)
-                        fecha = fecha.strftime('%m-%d-%Y')
-                        print(f"|{folio:^10}|{id_cliente:^15}|{fecha:^15}|{turno:^15}|{id_sala:^10}|{nombre_evento:^40}|")
-                    print("-"*112)
+                    headers = ['Folio', 'Nombre del cliente', 'Fecha', 'Turno', 'ID sala', 'Nombre del evento']
+                    filas = []
+                    for row in resultados:
+                        fecha_obj = dt.date.fromisoformat(row[2])
+                        fecha_str = fecha_obj.strftime('%m-%d-%Y')
+                        filas.append([str(row[0]), row[1], fecha_str, row[3], str(row[4]), row[5]])
+                    print(tabulate(filas, headers, tablefmt='grid'))
                 else:
                     print("No hay reservaciones disponibles para esta fecha.")
+                return resultados
             except Error as e:
                 print(e)
             except Exception:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
-
 
         def obtener_reservaciones_en_rango(self, fecha_inicio: dt.date, fecha_fin: dt.date) -> list:
             valores = (fecha_inicio, fecha_fin)
@@ -234,15 +198,16 @@ class Coworking:
                     cursor.execute("""
                         SELECT
                             r.folio,
-                            r.id_cliente,
+                            c.nombre || ' ' || c.apellidos AS nombre_cliente,
                             r.fecha,
                             t.turno,
                             r.id_sala,
                             r.nombre_evento
                         FROM reservaciones r
-                        JOIN reservaciones_turnos rt ON r.folio = rt.folio
-                        JOIN turnos t ON t.id_turno = rt.id_turno
-                        WHERE fecha BETWEEN ? AND ?;
+                        JOIN turnos t ON t.id_turno = r.id_turno
+                        JOIN clientes c ON c.id_cliente = r.id_cliente
+                        WHERE fecha BETWEEN ? AND ?
+                        AND r.cancelado IS NULL;
                     """, valores)
 
                     resultados = cursor.fetchall()
@@ -275,9 +240,21 @@ class Coworking:
             except Exception:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
-        def verificar_existencia_reservacion(self, fecha, id_sala, turno):
+        def verificar_existencia_reservacion(self, fecha: dt.date, id_sala: int, turno: str) -> bool:
+            """Verifica si existe una reservación.
+
+            Args:
+                fecha (dt.date): Fecha a consultar.
+                id_sala (int): ID de la sala a consultar.
+                turno (str): Turno a consultar.
+
+            Returns:
+                bool: True si existe, False si no existe.
+            """
+
             fecha_formateada = fecha.isoformat()
             valores = (fecha_formateada, id_sala, turno)
+
             try:
                 with sqlite3.connect("coworking.db") as conn:
                     cursor = conn.cursor()
@@ -290,11 +267,11 @@ class Coworking:
                             r.id_sala,
                             r.nombre_evento
                         FROM reservaciones r
-                        JOIN reservaciones_turnos rt ON r.folio = rt.folio
-                        JOIN turnos t ON t.id_turno = rt.id_turno
+                        JOIN turnos t ON t.id_turno = r.id_turno
                         WHERE fecha = ?
                         AND id_sala = ?
-                        AND turno = ?;
+                        AND turno = ?
+                        AND r.cancelado IS NULL;
                     """, valores)
 
                     resultados = cursor.fetchall()
@@ -311,6 +288,31 @@ class Coworking:
 
             return True
 
+        def cancelar_reservación(self, folio: int) -> None:
+            """Cancela una reservación, marcándola como cancelada.
+
+            Args:
+                folio (int): Folio de la reservación a cancelar.
+            """
+
+            valores = (folio,)
+
+            try:
+                with sqlite3.connect("coworking.db") as conn:
+                    cursor = conn.cursor()
+
+                    cursor.execute("""
+                        UPDATE reservaciones
+                        SET cancelado = 1
+                        WHERE folio = ?;
+                    """, valores)
+
+                    print("Reservación cancelada exitosamente.")
+            except Error as e:
+                print(e)
+            except Exception:
+                print(f"Ocurrió un error: {sys.exc_info()[0]}")
+
     class ManejarSalas:
         """Clase para el manejo de salas."""
 
@@ -318,6 +320,13 @@ class Coworking:
             pass
 
         def registrar_sala(self, nombre: str, cupo: int) -> None:
+            """Registra una sala en la base de datos.
+
+            Args:
+                nombre (str): Nombre de la sala.
+                cupo (int): Cupo de la sala.
+            """
+
             try:
                 with sqlite3.connect("coworking.db") as conn:
                     cursor = conn.cursor()
@@ -335,6 +344,78 @@ class Coworking:
             except Exception:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
+        def mostrar_salas_disponibles(self, fecha:dt.date, datos:list = None) -> None:
+            """Muestra las salas disponibles en una fecha específica.
+
+            Args:
+                lista_salas (dict): Lista que contiene las salas registradas.
+                fecha (dt.date): Fecha a consultar.
+                datos (list): Lista con los datos de las salas. (opcional)
+            """
+
+            try:
+                if datos:
+                    resultados = datos
+                else:
+                    resultados = self.obtener_salas_disponibles(fecha)
+
+                if resultados:
+                    headers = ['ID sala', 'Nombre', 'Cupo', 'Turnos disponibles']
+                    filas = [[str(row[0]), row[1], str(row[2]), row[3]] for row in resultados]
+                    print(tabulate(filas, headers, tablefmt='grid'))
+                else:
+                    print("No hay salas disponibles para esta fecha.")
+            except Error as e:
+                print(e)
+            except Exception:
+                print(f"Ocurrió un error: {sys.exc_info()[0]}")
+
+        def obtener_salas_disponibles(self, fecha:dt.date) -> list:
+            """Obtiene las salas disponibles en una fecha específica.
+
+            Args:
+                fecha (dt.date): Fecha a consultar.
+
+            Returns:
+                list: Lista de tuplas con los datos de las salas.
+            """
+
+            fecha_formateada = fecha.isoformat()
+            valores = (fecha_formateada,)
+
+            try:
+                with sqlite3.connect("coworking.db") as conn:
+                    cursor = conn.cursor()
+
+                    cursor.execute("""
+                            SELECT
+                                s.id_sala,
+                                s.nombre,
+                                s.cupo,
+                                group_concat(t.turno, ', ')
+                            FROM salas s
+                            CROSS JOIN turnos t
+                            LEFT JOIN
+                            (
+                                SELECT
+                                *
+                                FROM reservaciones r
+                                JOIN salas s ON s.id_sala = r.id_sala
+                                WHERE cancelado IS NULL
+                                AND r.fecha = ?
+                            ) AS re ON re.id_turno = t.id_turno AND re.id_sala = s.id_sala
+                            WHERE re.id_turno IS NULL
+                            GROUP BY s.id_sala
+                        """, valores)
+
+                    resultados = cursor.fetchall()
+                    return resultados
+
+            except Error as e:
+                print(e)
+            except Exception:
+                print(f"Ocurrió un error: {sys.exc_info()[0]}")
+
     class ManejarClientes:
         """Clase para el manejo de clientes."""
 
@@ -342,6 +423,13 @@ class Coworking:
             pass
 
         def registrar_cliente(self, nombre: str, apellidos: str) -> None:
+            """Registra un cliente en la base de datos.
+
+            Args:
+                nombre (str): Nombre del cliente.
+                apellidos (str): Apellidos del cliente.
+            """
+
             try:
                 with sqlite3.connect("coworking.db") as conn:
                     cursor = conn.cursor()
@@ -358,8 +446,12 @@ class Coworking:
             except Exception:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
-        def mostrar_clientes(self, datos: list = []) -> None:
-            """Muestra los clientes registrados en formato tabular."""
+        def mostrar_clientes(self, datos: list = None) -> None:
+            """Muestra los clientes registrados en formato tabular.
+            Args:
+                datos (list): Lista que contiene los datos de los clientes. (opcional)
+            """
+
             try:
                 if datos:
                     resultados = datos
@@ -367,12 +459,9 @@ class Coworking:
                     resultados = self.obtener_clientes()
 
                 if resultados:
-                    print(f"\n{"-"*63}")
-                    print(f"|{"ID":^10}|{"Nombre":^25}|{"Apellidos":^25}|")
-                    print(f"\n{"="*63}")
-                    for id_cliente, nombre, apellidos in resultados:
-                        print(f"|{id_cliente:^10}|{nombre:^25}|{apellidos:^25}|")
-                    print("-"*63)
+                    headers = ['ID', 'Nombre', 'Apellidos']
+                    filas = [[str(row[0]), row[1], row[2]] for row in resultados]
+                    print(tabulate(filas, headers, tablefmt='grid'))
                 else:
                     print("No hay clientes registrados.")
             except Error as e:
@@ -381,6 +470,12 @@ class Coworking:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
         def obtener_clientes(self) -> list:
+            """Obtiene los clientes registrados.
+
+            Returns:
+                list: Lista de tuplas con los datos de los clientes.
+            """
+
             try:
                 with sqlite3.connect("coworking.db") as conn:
                     cursor = conn.cursor()
@@ -404,8 +499,9 @@ class Coworking:
             except Exception:
                 print(f"Ocurrió un error: {sys.exc_info()[0]}")
 
-    def __inicializar_base_datos(self):
+    def __inicializar_base_datos(self) -> None:
         """Crea coworking.db y las tablas básicas si no existen."""
+
         try:
             with sqlite3.connect("coworking.db") as conn:
                 cursor = conn.cursor()
@@ -429,18 +525,6 @@ class Coworking:
                 """)
 
                 cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS reservaciones (
-                        folio INTEGER PRIMARY KEY,
-                        id_cliente INTEGER NOT NULL,
-                        fecha TEXT NOT NULL,
-                        id_sala INTEGER NOT NULL,
-                        nombre_evento TEXT NOT NULL,
-                        FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
-                        FOREIGN KEY (id_sala) REFERENCES salas(id_sala)
-                    );
-                """)
-
-                cursor.execute("""
                     CREATE TABLE IF NOT EXISTS turnos (
                         id_turno INTEGER PRIMARY KEY,
                         turno TEXT NOT NULL
@@ -448,11 +532,16 @@ class Coworking:
                 """)
 
                 cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS reservaciones_turnos (
-                        id_reservaciones_turnos INTEGER PRIMARY KEY,
-                        folio INTEGER NOT NULL,
+                    CREATE TABLE IF NOT EXISTS reservaciones (
+                        folio INTEGER PRIMARY KEY,
+                        id_cliente INTEGER NOT NULL,
+                        fecha TEXT NOT NULL,
                         id_turno INTEGER NOT NULL,
-                        FOREIGN KEY (folio) REFERENCES reservaciones(folio),
+                        id_sala INTEGER NOT NULL,
+                        nombre_evento TEXT NOT NULL,
+                        cancelado INTEGER,
+                        FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente),
+                        FOREIGN KEY (id_sala) REFERENCES salas(id_sala),
                         FOREIGN KEY (id_turno) REFERENCES turnos(id_turno)
                     );
                 """)
@@ -486,6 +575,15 @@ class Coworking:
         return True if confirmar_salida.upper() == "S" else False
 
     def __pedir_string(self, mensaje: str) -> str:
+        """Pide un string al usuario y se asegura de que no esté vacío.
+
+        Args:
+            mensaje (str): Mensaje a mostrar al usuario.
+
+        Returns:
+            str: String introducido por el usuario.
+        """
+
         while True:
             entrada = input(mensaje).strip()
 
@@ -495,13 +593,27 @@ class Coworking:
 
             return entrada
 
-    def __exportar_json(self, reservaciones:dict, fecha:str):
+    def __exportar_json(self, reservaciones: dict, fecha: str) -> None:
+        """Exporta las reservaciones a formato JSON.
+
+        Args:
+            reservaciones (dict): Diccionario con los valores de las reservaciones.
+            fecha (str): Fecha de consulta.
+        """
+
         with open(f"reservaciones_{fecha}.json", "w", encoding="utf-8") as archivo:
             json.dump(reservaciones, archivo, indent=2, ensure_ascii=False)
         print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha}.json'")
 
 
-    def __exportar_csv(self,reservaciones:dict, fecha:str):
+    def __exportar_csv(self,reservaciones: dict, fecha: str) -> None:
+        """Exporta las reservaciones a formato CSV.
+
+        Args:
+            reservaciones (dict): Diccionario con los valores de las reservaciones.
+            fecha (str): Fecha de consulta.
+        """
+
         with open(f"reservaciones_{fecha}.csv", "w", newline="", encoding="utf-8") as archivo:
             manejar_csv = csv.writer(archivo)
             manejar_csv.writerow(("Folio", "Nombre Sala", "Nombre Cliente", "Nombre Evento", "Turno", "Fecha"))
@@ -509,8 +621,16 @@ class Coworking:
             for folio, datos in reservaciones.items():
                 manejar_csv.writerow((folio, datos["nombre_sala"], datos["nombre_cliente"], datos["nombre_evento"], datos["turno"], datos["fecha"]))
 
+        print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha}.csv'")
 
-    def __exportar_excel(self, reservaciones:dict, fecha:str):
+    def __exportar_excel(self, reservaciones: dict, fecha: str) -> None:
+        """Exporta las reservaciones a formato XLSX (Excel)
+
+        Args:
+            reservaciones (dict): Diccionario con los valores de las reservaciones.
+            fecha (str): Fecha de consulta.
+        """
+
         libro = openpyxl.Workbook()
         hoja = libro.active
         hoja.title = f"Reservaciones_{fecha}"
@@ -535,11 +655,26 @@ class Coworking:
             hoja.cell(row=renglon, column=5, value=datos["turno"]).alignment = centrado
             hoja.cell(row=renglon, column=6, value=datos["fecha"]).alignment = centrado
 
+        for column in hoja.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            hoja.column_dimensions[column_letter].width = max_length + 2  # +2 = pequeño margen
+
         libro.save(f"reservaciones_{fecha}.xlsx")
         print(f"Reservaciones exportadas correctamente a 'reservaciones_{fecha}.xlsx'")
 
 
-    def __exportar(self, lista_reservaciones:list, fecha:dt.date):
+    def __exportar(self, lista_reservaciones: list, fecha: dt.date) -> None:
+        """Menú que permite elegir el formato a exportar la lista de reservaciones.
+
+        Args:
+            lista_reservaciones (list): Lista de tuplas que contiene las reservaciones.
+            fecha (dt.date): Fecha de consulta.
+        """
+
         formato = input("Seleccione el formato de exportación: JSON, CSV o EXCEL: ").upper()
 
         fecha_str = fecha.strftime('%m-%d-%Y')
@@ -626,11 +761,11 @@ class Coworking:
                 continue
 
 
-        lista_salas = self.reservaciones.obtener_salas_disponibles(fecha)
+        lista_salas = self.salas.obtener_salas_disponibles(fecha)
         ids_sala_validos = [sala[0] for sala in lista_salas]
 
         while True:
-            self.reservaciones.mostrar_salas_disponibles(fecha, lista_salas)
+            self.salas.mostrar_salas_disponibles(fecha, lista_salas)
             try:
                 id_sala = int(self.__pedir_string("Escriba el ID de la sala a escoger: "))
                 if id_sala not in ids_sala_validos:
@@ -751,8 +886,7 @@ class Coworking:
                 fecha_str = input("Escriba la fecha a consultar (mm-dd-yyyy) o presione Enter para la fecha actual: ").strip()
 
                 if not fecha_str:
-                    fecha = dt.date.today()
-                    break
+                    fecha_str = dt.date.today().strftime("%m-%d-%Y")
 
                 fecha = dt.datetime.strptime(fecha_str, "%m-%d-%Y").date()
 
@@ -771,10 +905,73 @@ class Coworking:
             exportar =  input("¿Desea exportar estas reservaciones? (SI/NO): ").upper()
             if exportar == "SI":
                 self.__exportar(registros_encontrados, fecha)
+        else:
+            print("No se encontraron reservaciones para el día especificado.")
+
+
+    def __cancelar_reservacion(self) -> None:
+        """Opción #4 del menú. Permite cancelar una reservación.
+
+        Returns:
+            None: Usado para salir de la función en caso de que el usuario lo decida.
+        """
+
+        print("Para cancelar su reservación, primero especifique el rango de fechas")
+
+        while True:
+            try:
+                fecha_inicio_str = input("Escriba la fecha de inicio del rango (mm-dd-yyyy): ")
+                fecha_inicio = dt.datetime.strptime(fecha_inicio_str, "%m-%d-%Y").date()
+
+                fecha_fin_str = input("Escriba la fecha de fin del rango (mm-dd-yyyy): ")
+                fecha_fin = dt.datetime.strptime(fecha_fin_str, "%m-%d-%Y").date()
+
+                if fecha_inicio > fecha_fin:
+                    print("La fecha de inicio no puede ser posterior a la de fin.")
+                    continue
+                break
+            except ValueError:
+                print("Formato no válido. Por favor, escríbalo de nuevo usando el formato correcto.")
+
+                if self.__verificar_salida():
+                    return
+
+                continue
+
+
+        resultados = self.reservaciones.obtener_reservaciones_en_rango(fecha_inicio, fecha_fin)
+        self.reservaciones.mostrar_reservaciones_en_rango(fecha_inicio, fecha_fin, resultados)
+        folios_validos = [folio[0] for folio in resultados]
+
+        while True:
+            try:
+                folio = int(self.__pedir_string("Escriba el folio de la reservación a cancelar: "))
+
+                if folio not in folios_validos:
+                    print("Folio no válido.")
+                    raise ValueError
+
+                break
+            except ValueError:
+                if self.__verificar_salida():
+                    return
+                continue
+
+        print(f"¿Realmente quiere cancelar esta reservación con el folio {folio}?")
+
+        while True:
+            eliminar = self.__pedir_string("(S) - Sí, (N) - No: ").upper()
+
+            if eliminar == "S":
+                self.reservaciones.cancelar_reservación(folio)
+                break
+            elif eliminar == "N":
+                return
+
 
 
     def __registrar_nuevo_cliente(self) -> None:
-        """Opción #4 del menú. Permite registrar a un nuevo cliente.
+        """Opción #5 del menú. Permite registrar a un nuevo cliente.
 
         Returns:
             None: Usado para salir de la función en caso de que el usuario lo decida.
@@ -803,7 +1000,7 @@ class Coworking:
         self.clientes.registrar_cliente(nombre, apellidos)
 
     def __registrar_nueva_sala(self) -> None:
-        """Opción #5 del menú. Registra una nueva sala.
+        """Opción #6 del menú. Registra una nueva sala.
 
         Returns:
             None: Usado para salir de la función en caso de que el usuario lo decida.
@@ -824,9 +1021,14 @@ class Coworking:
             try:
                 cupo_str = self.__pedir_string("Escriba el cupo de la sala: ")
                 cupo = int(cupo_str)
+
+                if cupo <= 0:
+                    print("El cupo debe ser mayor a cero.")
+                    raise ValueError
                 break
+
             except ValueError:
-                print("Valor inválido")
+                print("Error: Valor inválido")
                 if self.__verificar_salida():
                     return
                 continue
@@ -842,15 +1044,16 @@ class Coworking:
             print("(1) - Registrar reservación de sala")
             print("(2) - Editar el nombre de una reservación ya hecha")
             print("(3) - Consultar reservaciones de una fecha específica")
-            print("(4) - Registrar a un nuevo cliente")
-            print("(5) - Registrar una sala")
-            print("(6) - Salir del programa\n")
+            print("(4) - Cancelar una reservación")
+            print("(5) - Registrar a un nuevo cliente")
+            print("(6) - Registrar una sala")
+            print("(7) - Salir del programa\n")
 
             while True:
                 try:
                     opcion = int(input("Escribe el número de la opción que vas a escoger: "))
 
-                    if opcion < 1 or opcion > 6:
+                    if opcion < 1 or opcion > 7:
                         print("ERROR: Opción no válida. Escoge entre 1 y 6.")
                         continue
 
@@ -869,12 +1072,14 @@ class Coworking:
                 case 3:
                     self.__consultar_reservaciones_fecha()
                 case 4:
-                    self.__registrar_nuevo_cliente()
+                    self.__cancelar_reservacion()
                 case 5:
-                    self.__registrar_nueva_sala()
+                    self.__registrar_nuevo_cliente()
                 case 6:
+                    self.__registrar_nueva_sala()
+                case 7:
                     confirmar = input("¿Desea salir del programa, los datos se guardaran en la base de datos? (S/N): ").upper()
-                    if confirmar == "S":
+                    if confirmar == "SI":
                         print("Saliendo del programa...")
                         break
 
