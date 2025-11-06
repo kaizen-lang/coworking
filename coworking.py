@@ -943,6 +943,10 @@ class Coworking:
         self.reservaciones.mostrar_reservaciones_en_rango(fecha_inicio, fecha_fin, resultados)
         folios_validos = [folio[0] for folio in resultados]
 
+        if not resultados:
+            print("No hay reservaciones en el rango especificado. Regresando al menú principal.")
+            return
+
         while True:
             try:
                 folio = int(self.__pedir_string("Escriba el folio de la reservación a cancelar: "))
@@ -960,13 +964,16 @@ class Coworking:
         print(f"¿Realmente quiere cancelar esta reservación con el folio {folio}?")
 
         while True:
-            eliminar = self.__pedir_string("(S) - Sí, (N) - No: ").upper()
+            eliminar = input("(S) - Sí, (N) - No: ").strip().upper()
 
             if eliminar == "S":
                 self.reservaciones.cancelar_reservación(folio)
                 break
             elif eliminar == "N":
                 return
+            else:
+                print("Entrada inválida. Por favor, ingrese S (Sí) o N (No).")
+                continue 
 
 
 
@@ -1079,10 +1086,11 @@ class Coworking:
                     self.__registrar_nueva_sala()
                 case 7:
                     confirmar = input("¿Desea salir del programa, los datos se guardaran en la base de datos? (S/N): ").upper()
-                    if confirmar == "SI":
+                    if confirmar == "S":
                         print("Saliendo del programa...")
                         break
 
 if __name__ == "__main__":
     programa = Coworking()
+
     programa.mostrar_menu()
